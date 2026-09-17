@@ -1,3 +1,4 @@
+import {registerPlatformTests} from './platform-cases.mjs';
 import {registerSecurityTests} from './security-cases.mjs';
 import {test,before,after,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
@@ -342,3 +343,5 @@ test('extreme and generated allocation ratios conserve liabilities across histor
 });
 
 registerSecurityTests({test,assert,ethers,abi,tx,deploy,setup,collect,plan,advance,fundEpoch,publish,getFixture:()=>fixture});
+
+registerPlatformTests({test,assert,ethers,abi,tx,deploy,setup,collect,advance,now,getFixture:()=>fixture,getProvider:()=>provider});

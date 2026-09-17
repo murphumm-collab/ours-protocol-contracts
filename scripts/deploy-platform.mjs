@@ -1,0 +1,27 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {ethers} from 'ethers';
+import {root} from './compile.mjs';
+
+const configPath=process.argv[2];
+if(!configPath||!process.env.RPC_URL||!process.env.DEPLOYER_KEY)throw Error('Usage: RPC_URL=... DEPLOYER_KEY=... node scripts/deploy-platform.mjs CONFIG.json');
+const c=JSON.parse(fs.readFileSync(configPath,'utf8'));
+for(const name of ['chainId','registry','feePool','v4PoolManager','platformToken','governance','treasuryRecipient','quoteSigner','governanceDelay','assets'])if(c[name]===undefined)throw Error('Missing '+name);
+const provider=new ethers.JsonRpcProvider(process.env.RPC_URL),wallet=new ethers.Wallet(process.env.DEPLOYER_KEY,provider),signer=new ethers.NonceManager(wallet);
+if((await provider.getNetwork()).chainId!==BigInt(c.chainId))throw Error('Wrong chain');
+for(const name of ['registry','feePool','v4PoolManager','platformToken'])if(await provider.getCode(c[name])==='0x')throw Error(name+' must have deployed code');
+const fee=new ethers.Contract(c.feePool,['function registry() view returns(address)'],provider);
+const registry=new ethers.Contract(c.registry,['function feePool() view returns(address)'],provider);
+if(ethers.getAddress(await fee.registry())!==ethers.getAddress(c.registry)||ethers.getAddress(await registry.feePool())!==ethers.getAddress(c.feePool))throw Error('FeePool/Registry mismatch');
+const artifact=JSON.parse(fs.readFileSync(path.join(root,'artifacts/OursPlatformTreasury.json'),'utf8'));
+const vault=await new ethers.ContractFactory(artifact.abi,artifact.evm.bytecode.object,signer).deploy(wallet.address,c.feePool,c.v4PoolManager,c.platformToken,c.treasuryRecipient,c.quoteSigner,c.governanceDelay);
+await vault.waitForDeployment();
+const output=path.resolve(c.outputFile??`deployment-platform-${c.chainId}-${Date.now()}.json`);
+const result={chainId:String(c.chainId),OursPlatformTreasury:vault.target,registry:c.registry,feePool:c.feePool,v4PoolManager:c.v4PoolManager,platformToken:c.platformToken,governance:c.governance,treasuryRecipient:c.treasuryRecipient,status:'deployed; configuration in progress'};
+const persist=()=>fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n',{mode:0o600});persist();
+const tx=async p=>(await p).wait();
+for(const a of c.assets)await tx(vault.configureAsset(a.address,a.feeAsset??false,a.stockAsset??false,BigInt(a.batchCap)));
+for(const operator of c.operators??[])await tx(vault.setOperator(operator,true));
+for(const p of c.pools??[])await tx(vault.configurePool(p.key,p.swapEnabled??false,p.liquidityEnabled??false));
+if(ethers.getAddress(c.governance)!==wallet.address)await tx(vault.transferOwnership(c.governance));
+result.status='configured; governance acceptance and explicit Registry platformRecipient transition still required';persist();console.log(JSON.stringify(result,null,2));await provider.destroy();

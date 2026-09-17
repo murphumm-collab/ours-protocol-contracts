@@ -9,7 +9,7 @@ import ganache from 'ganache';
 import {ethers} from 'ethers';
 import {root} from '../scripts/compile.mjs';
 const run=promisify(execFile);
-test('deployment CLI configures six contracts and leaves governance acceptance pending on local EVM',async()=>{
+test('deployment CLIs configure revenue contracts plus independent platform treasury with governance acceptance pending',async()=>{
  const server=ganache.server({logging:{quiet:true},chain:{chainId:4663},wallet:{totalAccounts:6}});const dir=await fs.mkdtemp(path.join(os.tmpdir(),'ours-deploy-test-'));let provider;
  try{
   await server.listen(0,'127.0.0.1');const url=`http://127.0.0.1:${server.address().port}`;provider=new ethers.JsonRpcProvider(url,undefined,{cacheTimeout:-1});provider.pollingInterval=10;
@@ -28,6 +28,14 @@ test('deployment CLI configures six contracts and leaves governance acceptance p
   assert.equal(await registry.allowedAssets(ethers.ZeroAddress),true);assert.equal(await registry.maxBatchInput(ethers.ZeroAddress),100000n);assert.equal(await registry.operators(operator),true);
   for(const adapter of [curve,v4])assert.equal(await registry.allowedAdapters(adapter.target),true);
   assert(!JSON.stringify(d).includes(accounts[0][1].secretKey));
+  const platformConfig=path.join(dir,'platform-config.json'),platformOutput=path.join(dir,'platform-deployment.json');
+  await fs.writeFile(platformConfig,JSON.stringify({chainId:4663,registry:registry.target,feePool:fee.target,v4PoolManager:noop,platformToken:noop,governance,treasuryRecipient:treasury,quoteSigner,governanceDelay:20,assets:[{address:ethers.ZeroAddress,feeAsset:true,batchCap:'100000'}],operators:[operator],outputFile:platformOutput}));
+  await run(process.execPath,['scripts/deploy-platform.mjs',platformConfig],{cwd:root,env:{...process.env,RPC_URL:url,DEPLOYER_KEY:accounts[0][1].secretKey},timeout:90000});
+  const pd=JSON.parse(await fs.readFile(platformOutput,'utf8')),pa=JSON.parse(await fs.readFile(path.join(root,'artifacts/OursPlatformTreasury.json'),'utf8'));
+  const platform=new ethers.Contract(pd.OursPlatformTreasury,pa.abi,provider);
+  assert.notEqual(await provider.getCode(platform.target),'0x');assert.equal(await platform.pendingOwner(),governance);assert.equal(await platform.feePool(),fee.target);assert.equal(await platform.treasuryRecipient(),treasury);assert.equal(await platform.STRATEGY_BPS(),8000n);assert.equal(await platform.operators(operator),true);
+  // Deployment does not silently change the existing revenue destination.
+  assert.equal(await registry.platformRecipient(),treasury);
   const before=await provider.getTransactionCount(admin,'latest');
   const wrong=JSON.parse(await fs.readFile(config,'utf8'));wrong.chainId=4664;await fs.writeFile(config,JSON.stringify(wrong));
   await assert.rejects(run(process.execPath,['scripts/deploy.mjs',config],{cwd:root,env:{...process.env,RPC_URL:url,DEPLOYER_KEY:accounts[0][1].secretKey},timeout:10000}),/Wrong chain/);

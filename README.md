@@ -1,4 +1,6 @@
-# OURS revenue contracts
+# OURS protocol contracts
+
+独立私有仓库：`murphumm-collab/ours-protocol-contracts`。由原前端工作区的收益合约与安全测试拆出，本仓库不含前端。
 
 可执行的收益模块实现，配套 Solidity ABI、部署脚本、分红清单生成器及本地 EVM 测试。
 
@@ -14,6 +16,7 @@
 | `OursDividendPool` | 股票 Token 等分红资产购买；按期资金桶；快照登记；多签审核 root；用户自行领取；防重复与总额限制 |
 | `OursCurveAdapter` | PONS buy/sell ABI，内盘阶段校验、退款和准确额度授权 |
 | `OursV4Adapter` | PoolManager unlock/swap/settle/take；认证回调；项目 canonical pool 校验；分红资产池白名单；单跳 exact-input |
+| `OursPlatformTreasury` | 平台实际 fee 的 80/20 分账；平台 Token 回购保留、股票 Token 买入、V4 LP 建仓/收手续费/延时退出；与项目收益池独立 |
 | `OursFeeAccrual` | **抽象接入组件**：交易发生时绑定版本，按版本累计并 sweep；毕业后仍可结算历史费用 |
 
 **分红只有用户 `claim` 的发放路径，没有遍历持有人或批量空投。** 用户支付领取 Gas。执行池由平台 operator 或项目 controller 触发，谁提交交易谁付 Gas；没有从池中报销 Gas 的入口。
@@ -29,7 +32,7 @@
 需要 Node.js 20+：
 
 ```sh
-cd contracts
+cd ours-protocol-contracts
 npm ci --ignore-scripts
 npm run compile
 npm run check
@@ -120,3 +123,5 @@ node scripts/dividend-manifest.mjs holders.json manifest.json
 完整测试结果与剩余边界见 [VALIDATION.md](VALIDATION.md)。
 
 安全测试补充见 [SECURITY_TESTS.md](SECURITY_TESTS.md)，可用 `npm run test:security` 独立执行。
+
+平台 80% 收益模块详见 [PLATFORM_TREASURY.zh-CN.md](PLATFORM_TREASURY.zh-CN.md)。原有部署脚本保持收益池范围；新模块使用独立的 `scripts/deploy-platform.mjs`。
