@@ -1,0 +1,9 @@
+node_modules/
+artifacts/
+coverage/
+.env
+
+.DS_Store
+.env.*
+!.env.example
+deployment-*.json

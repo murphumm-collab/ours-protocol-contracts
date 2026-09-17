@@ -1,0 +1,300 @@
+
+> check
+> npm run compile && npm test && node --test test/deploy-smoke.mjs
+
+
+> compile
+> node scripts/compile.mjs
+
+OursBuybackPool: 8675 bytes
+OursDividendPool: 13972 bytes
+OursFeePool: 11435 bytes
+OursProjectRegistry: 10497 bytes
+OursCurveAdapter: 2930 bytes
+OursV4Adapter: 5261 bytes
+OursRevenueTypes: 58 bytes
+
+> test
+> node --test test/*.test.mjs
+
+TAP version 13
+# Subtest: holder threshold includes equality; exclusions and proof paths match Solidity double-hash leaves
+ok 1 - holder threshold includes equality; exclusions and proof paths match Solidity double-hash leaves
+  ---
+  duration_ms: 12.556375
+  type: 'test'
+  ...
+# Subtest: empty eligibility produces no claim root, retaining all funding
+ok 2 - empty eligibility produces no claim root, retaining all funding
+  ---
+  duration_ms: 0.471959
+  type: 'test'
+  ...
+# Subtest: manifest rejects duplicate holders and negatives, truncates only rounding dust
+ok 3 - manifest rejects duplicate holders and negatives, truncates only rounding dust
+  ---
+  duration_ms: 1.3275
+  type: 'test'
+  ...
+# Subtest: regression: reject unsafe JavaScript numbers before token amounts lose precision
+ok 4 - regression: reject unsafe JavaScript numbers before token amounts lose precision
+  ---
+  duration_ms: 0.186458
+  type: 'test'
+  ...
+# Subtest: manifest validates uint256 boundaries and excludes the zero address
+ok 5 - manifest validates uint256 boundaries and excludes the zero address
+  ---
+  duration_ms: 3.085084
+  type: 'test'
+  ...
+# Subtest: deterministic generated portfolios conserve funds and verify every proof for odd/even trees
+ok 6 - deterministic generated portfolios conserve funds and verify every proof for odd/even trees
+  ---
+  duration_ms: 1112.064333
+  type: 'test'
+  ...
+# bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+# This version of µWS is not compatible with your Node.js build:
+# Error: Cannot find module '../binaries/uws_darwin_arm64_127.node'
+# Require stack:
+# - /Users/mo/Documents/ours-meme-web/contracts/node_modules/ganache/node_modules/@trufflesuite/uws-js-unofficial/src/uws.js
+# - /Users/mo/Documents/ours-meme-web/contracts/node_modules/ganache/dist/node/core.js
+# Falling back to a NodeJS implementation; performance may be degraded.
+# Subtest: 100 fee splits 30 platform / 28 buyback / 28 dividend / 14 creator, with liabilities conserved
+ok 7 - 100 fee splits 30 platform / 28 buyback / 28 dividend / 14 creator, with liabilities conserved
+  ---
+  duration_ms: 1607.114084
+  type: 'test'
+  ...
+# Subtest: cumulative allocation is independent of batching, including dust release
+ok 8 - cumulative allocation is independent of batching, including dust release
+  ---
+  duration_ms: 4050.68375
+  type: 'test'
+  ...
+# Subtest: historical source accrual survives policy change; disabled new version is 100% platform
+ok 9 - historical source accrual survives policy change; disabled new version is 100% platform
+  ---
+  duration_ms: 2200.939708
+  type: 'test'
+  ...
+# Subtest: policies reject invalid proportions; cancelled IDs never activate; controller transfer preserves old payee
+ok 10 - policies reject invalid proportions; cancelled IDs never activate; controller transfer preserves old payee
+  ---
+  duration_ms: 1725.614459
+  type: 'test'
+  ...
+# Subtest: unauthorized fee injection, bucket funding, execution and reviewer actions are rejected
+ok 11 - unauthorized fee injection, bucket funding, execution and reviewer actions are rejected
+  ---
+  duration_ms: 530.471625
+  type: 'test'
+  ...
+# Subtest: buyback checks signed destination, actual balance deltas, burns output, and cannot replay
+ok 12 - buyback checks signed destination, actual balance deltas, burns output, and cannot replay
+  ---
+  duration_ms: 1144.349916
+  type: 'test'
+  ...
+# Subtest: minimum output failure rolls back nonce and budget; revoked signature epoch rejects old plans
+ok 13 - minimum output failure rolls back nonce and budget; revoked signature epoch rejects old plans
+  ---
+  duration_ms: 833.646458
+  type: 'test'
+  ...
+# Subtest: curve adapter handles partial fill refunds, preserves donation, and clears approvals
+ok 14 - curve adapter handles partial fill refunds, preserves donation, and clears approvals
+  ---
+  duration_ms: 1210.714083
+  type: 'test'
+  ...
+# Subtest: ready/migrating projects cannot swap; historical fee sweeps remain possible after graduation
+ok 15 - ready/migrating projects cannot swap; historical fee sweeps remain possible after graduation
+  ---
+  duration_ms: 963.259917
+  type: 'test'
+  ...
+# Subtest: raw Hook-style meme fees normalize before distribution and retain version
+ok 16 - raw Hook-style meme fees normalize before distribution and retain version
+  ---
+  duration_ms: 2340.961042
+  type: 'test'
+  ...
+# Subtest: pull dividend claims bind beneficiary, epoch and pool, require review delay, and reject duplicate claims
+ok 17 - pull dividend claims bind beneficiary, epoch and pool, require review delay, and reject duplicate claims
+  ---
+  duration_ms: 1546.062958
+  type: 'test'
+  ...
+# Subtest: no holder iteration: independent claims; blocked recipient cannot consume another holder reserve
+ok 18 - no holder iteration: independent claims; blocked recipient cannot consume another holder reserve
+  ---
+  duration_ms: 1271.822041
+  type: 'test'
+  ...
+# Subtest: reviewer cannot publish beyond funding, creator cannot author a root, and aggregate claim cap is enforced
+ok 19 - reviewer cannot publish beyond funding, creator cannot author a root, and aggregate claim cap is enforced
+  ---
+  duration_ms: 1254.58275
+  type: 'test'
+  ...
+# Subtest: empty epoch rolls back only to same project inventory; review cancellation permits correction with renewed delay
+ok 20 - empty epoch rolls back only to same project inventory; review cancellation permits correction with renewed delay
+  ---
+  duration_ms: 1290.34325
+  type: 'test'
+  ...
+# Subtest: native fees/refunds and separate stock reward conversion work
+ok 21 - native fees/refunds and separate stock reward conversion work
+  ---
+  duration_ms: 2310.29825
+  type: 'test'
+  ...
+# Subtest: V4 adapter authenticates callback/canonical pool, settles actual deltas, and refunds partial input
+ok 22 - V4 adapter authenticates callback/canonical pool, settles actual deltas, and refunds partial input
+  ---
+  duration_ms: 1488.320417
+  type: 'test'
+  ...
+# Subtest: ERC1271 quote signer support and pause do not prevent existing income claims
+ok 23 - ERC1271 quote signer support and pause do not prevent existing income claims
+  ---
+  duration_ms: 1285.497625
+  type: 'test'
+  ...
+# Subtest: fee-on-transfer deposits revert without consuming source accrual
+ok 24 - fee-on-transfer deposits revert without consuming source accrual
+  ---
+  duration_ms: 141.484542
+  type: 'test'
+  ...
+# Subtest: new-period rewards cannot block funding the previous period
+ok 25 - new-period rewards cannot block funding the previous period
+  ---
+  duration_ms: 1349.811708
+  type: 'test'
+  ...
+# Subtest: another project controller cannot spend or distribute this project balances
+ok 26 - another project controller cannot spend or distribute this project balances
+  ---
+  duration_ms: 817.040041
+  type: 'test'
+  ...
+# Subtest: zero creator share cannot collect rounding dust; disabled mode cannot fund either action pool
+ok 27 - zero creator share cannot collect rounding dust; disabled mode cannot fund either action pool
+  ---
+  duration_ms: 2404.398334
+  type: 'test'
+  ...
+# Subtest: signed plans fail on expiry, altered routes, overspend and another verifying pool
+ok 28 - signed plans fail on expiry, altered routes, overspend and another verifying pool
+  ---
+  duration_ms: 903.709375
+  type: 'test'
+  ...
+# Subtest: real dividend manifest enforces configured minimum off-chain and its proofs redeem on-chain
+ok 29 - real dividend manifest enforces configured minimum off-chain and its proofs redeem on-chain
+  ---
+  duration_ms: 1229.421
+  type: 'test'
+  ...
+# Subtest: native income recipient reentrancy cannot claim twice or take other liabilities
+ok 30 - native income recipient reentrancy cannot claim twice or take other liabilities
+  ---
+  duration_ms: 1221.064417
+  type: 'test'
+  ...
+# Subtest: regression: independent dividend asset conversion remains usable during meme migration
+ok 31 - regression: independent dividend asset conversion remains usable during meme migration
+  ---
+  duration_ms: 1873.828958
+  type: 'test'
+  ...
+# Subtest: regression: irreversible pool binding rejects another registry and swapped pool roles
+ok 32 - regression: irreversible pool binding rejects another registry and swapped pool roles
+  ---
+  duration_ms: 356.170667
+  type: 'test'
+  ...
+# Subtest: ten thousand eligible holders need only a logarithmic proof and one user claim
+ok 33 - ten thousand eligible holders need only a logarithmic proof and one user claim
+  ---
+  duration_ms: 3503.43775
+  type: 'test'
+  ...
+# holders=10000 proofLength=8 claimGas=135477
+# Subtest: failed output slippage restores nonce, token balances and allowance, allowing a fresh signed retry
+ok 34 - failed output slippage restores nonce, token balances and allowance, allowing a fresh signed retry
+  ---
+  duration_ms: 1067.956459
+  type: 'test'
+  ...
+# Subtest: adapter revocation, asset revocation and per-batch limit block swaps without consuming funds
+ok 35 - adapter revocation, asset revocation and per-batch limit block swaps without consuming funds
+  ---
+  duration_ms: 1220.133083
+  type: 'test'
+  ...
+# Subtest: historical treasury is frozen in each version even when governance changes recipient
+ok 36 - historical treasury is frozen in each version even when governance changes recipient
+  ---
+  duration_ms: 2016.722459
+  type: 'test'
+  ...
+# Subtest: direct donations do not become claimable fees, budgets or reward inventory
+ok 37 - direct donations do not become claimable fees, budgets or reward inventory
+  ---
+  duration_ms: 486.221209
+  type: 'test'
+  ...
+# Subtest: snapshot rejects wrong recent block hash and duplicate records; epoch funding cannot repeat
+ok 38 - snapshot rejects wrong recent block hash and duplicate records; epoch funding cannot repeat
+  ---
+  duration_ms: 1117.456875
+  type: 'test'
+  ...
+# Subtest: review cancellation resets the waiting period; an active root and outstanding claims are immutable
+ok 39 - review cancellation resets the waiting period; an active root and outstanding claims are immutable
+  ---
+  duration_ms: 1411.438417
+  type: 'test'
+  ...
+# Subtest: extreme and generated allocation ratios conserve liabilities across historical versions
+ok 40 - extreme and generated allocation ratios conserve liabilities across historical versions
+  ---
+  duration_ms: 10557.418834
+  type: 'test'
+  ...
+1..40
+# tests 40
+# suites 0
+# pass 40
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 82968.005208
+TAP version 13
+# bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+# This version of µWS is not compatible with your Node.js build:
+# Error: Cannot find module '../binaries/uws_darwin_arm64_127.node'
+# Require stack:
+# - /Users/mo/Documents/ours-meme-web/contracts/node_modules/ganache/node_modules/@trufflesuite/uws-js-unofficial/src/uws.js
+# - /Users/mo/Documents/ours-meme-web/contracts/node_modules/ganache/dist/node/core.js
+# Falling back to a NodeJS implementation; performance may be degraded.
+# Subtest: deployment CLI configures six contracts and leaves governance acceptance pending on local EVM
+ok 1 - deployment CLI configures six contracts and leaves governance acceptance pending on local EVM
+  ---
+  duration_ms: 3396.020167
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3922.9465
