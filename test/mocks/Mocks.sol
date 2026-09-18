@@ -93,3 +93,7 @@ contract ReenteringRecipient {
         (nestedSucceeded,)=address(pool).call(abi.encodeCall(IIncomePool.claimIncome,(address(0))));
     }
 }
+interface IPlatformRewards { function releaseRewards(uint256 amount) external; }
+contract MockRewardDistributor {
+    function pull(IPlatformRewards vault,uint256 amount) external { vault.releaseRewards(amount); }
+}

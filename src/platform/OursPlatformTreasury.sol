@@ -19,15 +19,17 @@ interface IPlatformV4Manager is IV4Manager {
     function modifyLiquidity(PoolKey calldata key, ModifyLiquidityParams calldata params, bytes calldata hookData)
         external returns (int256 callerDelta, int256 feesAccrued);
 }
+interface IPlatformBurnable { function burn(uint256 amount) external; }
 
 /// @notice Separate platform treasury. Only platform-owned fee income is collected here.
 /// @dev V4 positions are owned directly by this contract: they are not transferable ERC721 LPs.
 contract OursPlatformTreasury is Ownable2Step, ReentrancyGuard, EIP712 {
     using SafeERC20 for IERC20;
     error Invalid(); error Unauthorized(); error BadPlan(); error TransferMismatch(); error TooEarly();
+    enum StrategyPurpose { BurnBuyback, LiquidityAcquire, RewardAcquire }
     struct SwapPlan {
         bytes32 poolId; address assetIn; uint256 maxAmountIn; uint256 minAmountOut;
-        uint160 sqrtPriceLimitX96; bool retainOutput; uint64 deadline; uint256 nonce; uint64 signerEpoch;
+        uint160 sqrtPriceLimitX96; StrategyPurpose purpose; uint64 deadline; uint256 nonce; uint64 signerEpoch;
     }
     struct LiquidityPlan {
         bytes32 poolId; int24 tickLower; int24 tickUpper; bytes32 salt; uint128 liquidity;
@@ -38,13 +40,17 @@ contract OursPlatformTreasury is Ownable2Step, ReentrancyGuard, EIP712 {
         uint8 kind; IV4Manager.PoolKey key; IV4Manager.SwapParams swapParams;
         IPlatformV4Manager.ModifyLiquidityParams liquidityParams; uint256 max0; uint256 max1;
     }
-    bytes32 public constant SWAP_TYPEHASH = keccak256("SwapPlan(bytes32 poolId,address assetIn,uint256 maxAmountIn,uint256 minAmountOut,uint160 sqrtPriceLimitX96,bool retainOutput,uint64 deadline,uint256 nonce,uint64 signerEpoch)");
+    bytes32 public constant SWAP_TYPEHASH = keccak256("SwapPlan(bytes32 poolId,address assetIn,uint256 maxAmountIn,uint256 minAmountOut,uint160 sqrtPriceLimitX96,uint8 purpose,uint64 deadline,uint256 nonce,uint64 signerEpoch)");
     bytes32 public constant LIQUIDITY_TYPEHASH = keccak256("LiquidityPlan(bytes32 poolId,int24 tickLower,int24 tickUpper,bytes32 salt,uint128 liquidity,uint256 maxAmount0,uint256 maxAmount1,uint256 minAmount0,uint256 minAmount1,uint64 deadline,uint256 nonce,uint64 signerEpoch)");
-    uint256 public constant STRATEGY_BPS = 8000;
+    uint256 public constant BURN_BPS = 5000;
+    uint256 public constant LIQUIDITY_BPS = 2000;
+    uint256 public constant REWARD_BPS = 1000;
+    uint256 public constant OPERATING_BPS = 2000;
     IOursFeePool public immutable feePool;
     IPlatformV4Manager public immutable manager;
     address public immutable platformToken;
     address public immutable treasuryRecipient;
+    address public immutable rewardDistributor;
     uint64 public immutable governanceDelay;
     address public quoteSigner;
     uint64 public signerEpoch = 1;
@@ -57,38 +63,44 @@ contract OursPlatformTreasury is Ownable2Step, ReentrancyGuard, EIP712 {
     mapping(bytes32 => bool) public swapPools;
     mapping(bytes32 => bool) public liquidityPools;
     mapping(address => uint256) public grossPlatformFees;
-    mapping(address => uint256) public strategyAllocated;
-    mapping(address => uint256) public strategyBalance;
+    mapping(address => uint256) public burnAllocated;
+    mapping(address => uint256) public liquidityAllocated;
+    mapping(address => uint256) public rewardAllocated;
+    mapping(address => uint256) public operatingAllocated;
+    mapping(address => uint256) public burnBalance;
+    mapping(address => uint256) public liquidityBalance;
+    mapping(address => uint256) public rewardBalance;
     mapping(address => uint256) public operatingBalance;
-    uint256 public retainedPlatformTokens;
     mapping(bytes32 => uint128) public positionLiquidity;
     mapping(bytes32 => bool) public usedNonces;
     mapping(bytes32 => uint256) public queuedAt;
     mapping(bytes32 => bool) public completedActions;
     bytes32 private activeCallback;
 
-    event FeesCollected(address indexed asset, uint256 amount, uint256 strategyAmount, uint256 operatingAmount);
+    event FeesCollected(address indexed asset, uint256 amount, uint256 burnAmount, uint256 liquidityAmount, uint256 rewardAmount, uint256 operatingAmount);
     event OperatingClaimed(address indexed asset, uint256 amount);
     event AssetConfigured(address indexed asset, bool feeAsset, bool stockAsset, uint256 cap);
     event PoolConfigured(bytes32 indexed poolId, bool swapEnabled, bool liquidityEnabled);
     event OperatorSet(address indexed operator, bool enabled);
     event SignerSet(address indexed signer, uint64 epoch);
     event PauseSet(bool paused);
-    event PlatformTokensReserved(uint256 amount);
-    event Swapped(bytes32 indexed poolId, address indexed assetIn, address indexed assetOut, uint256 spent, uint256 received, bool retained);
+    event Swapped(bytes32 indexed poolId, address indexed assetIn, address indexed assetOut, uint256 spent, uint256 received, StrategyPurpose purpose);
+    event PlatformTokensBurned(uint256 amount);
+    event RewardsReleased(uint256 amount);
     event LiquidityChanged(bytes32 indexed positionId, bool added, uint128 liquidity);
     event LiquidityFeesHarvested(bytes32 indexed positionId,uint256 amount0,uint256 amount1);
     event ActionQueued(bytes32 indexed action, uint256 executableAt);
     event ActionCancelled(bytes32 indexed action);
     event ActionExecuted(bytes32 indexed action);
-    event Withdrawn(address indexed asset, uint256 amount, bool fromRetained);
 
     constructor(address governance, IOursFeePool feePool_, IPlatformV4Manager manager_, address token_,
-        address treasury_, address signer_, uint64 delay_)
+        address treasury_, address rewards_, address signer_, uint64 delay_)
         Ownable(governance) EIP712("OURS PlatformTreasury", "1") {
         if(address(feePool_).code.length==0 || address(manager_).code.length==0 || token_.code.length==0
-            || treasury_==address(0) || treasury_==address(this) || signer_==address(0) || delay_==0) revert Invalid();
-        feePool=feePool_;manager=manager_;platformToken=token_;treasuryRecipient=treasury_;quoteSigner=signer_;governanceDelay=delay_;
+            || treasury_==address(0) || treasury_==address(this) || rewards_.code.length==0
+            || signer_==address(0) || delay_==0) revert Invalid();
+        feePool=feePool_;manager=manager_;platformToken=token_;treasuryRecipient=treasury_;
+        rewardDistributor=rewards_;quoteSigner=signer_;governanceDelay=delay_;
     }
     receive() external payable {}
     modifier executor(){if(msg.sender!=owner()&&!operators[msg.sender])revert Unauthorized();_;}
@@ -121,8 +133,10 @@ contract OursPlatformTreasury is Ownable2Step, ReentrancyGuard, EIP712 {
     function _knownAsset(address a) private view returns(bool){return a==platformToken||feeAssets[a]||stockAssets[a];}
     function poolKey(bytes32 id) external view returns(IV4Manager.PoolKey memory){return pools[id];}
     function accountedBalance(address asset) public view returns(uint256){
-        return strategyBalance[asset]+operatingBalance[asset]+(asset==platformToken?retainedPlatformTokens:0);
+        return burnBalance[asset]+liquidityBalance[asset]+rewardBalance[asset]+operatingBalance[asset];
     }
+    function strategyAllocated(address asset) external view returns(uint256){return burnAllocated[asset]+liquidityAllocated[asset]+rewardAllocated[asset];}
+    function strategyBalance(address asset) external view returns(uint256){return burnBalance[asset]+liquidityBalance[asset]+rewardBalance[asset];}
     /// @notice FeePool pays only msg.sender's entitlement; no project budget can be pulled.
     function collectFees(address asset) external nonReentrant {
         if(!feeAssets[asset])revert Invalid();uint256 before_=_balance(asset);
@@ -138,19 +152,35 @@ contract OursPlatformTreasury is Ownable2Step, ReentrancyGuard, EIP712 {
     }
     function _allocate(address asset,uint256 amount) private {
         grossPlatformFees[asset]+=amount;
-        uint256 total=Math.mulDiv(grossPlatformFees[asset],STRATEGY_BPS,10000);
-        uint256 strategy=total-strategyAllocated[asset];strategyAllocated[asset]=total;
-        strategyBalance[asset]+=strategy;operatingBalance[asset]+=amount-strategy;
-        emit FeesCollected(asset,amount,strategy,amount-strategy);
+        uint256 gross=grossPlatformFees[asset];
+        uint256 strategyTotal=Math.mulDiv(gross,BURN_BPS+LIQUIDITY_BPS+REWARD_BPS,10000);
+        uint256 operatingTotal=gross-strategyTotal;
+        uint256 liquidityTotal=Math.mulDiv(gross,LIQUIDITY_BPS,10000);
+        uint256 rewardTotal=Math.mulDiv(gross,REWARD_BPS,10000);
+        // Assign indivisible rounding dust to burn so strategy remains exactly 80%.
+        uint256 burnTotal=strategyTotal-liquidityTotal-rewardTotal;
+        uint256 burn=burnTotal-burnAllocated[asset];
+        uint256 liquidity=liquidityTotal-liquidityAllocated[asset];
+        uint256 reward=rewardTotal-rewardAllocated[asset];
+        uint256 operating=operatingTotal-operatingAllocated[asset];
+        burnAllocated[asset]=burnTotal;liquidityAllocated[asset]=liquidityTotal;rewardAllocated[asset]=rewardTotal;operatingAllocated[asset]=operatingTotal;
+        burnBalance[asset]+=burn;liquidityBalance[asset]+=liquidity;rewardBalance[asset]+=reward;
+        operatingBalance[asset]+=operating;
+        emit FeesCollected(asset,amount,burn,liquidity,reward,operating);
     }
     /// @notice Permissionless trigger; the 20% always goes to the immutable platform recipient.
     function claimOperating(address asset) external nonReentrant {
         uint256 amount=operatingBalance[asset];if(amount==0)revert Invalid();operatingBalance[asset]=0;
         _sendExact(asset,treasuryRecipient,amount);emit OperatingClaimed(asset,amount);
     }
-    function reservePlatformTokens(uint256 amount) external executor nonReentrant {
-        if(amount==0||amount>strategyBalance[platformToken])revert Invalid();
-        strategyBalance[platformToken]-=amount;retainedPlatformTokens+=amount;emit PlatformTokensReserved(amount);
+    /// @notice Burn platform-token fees directly without routing through a pool.
+    function burnPlatformTokens(uint256 amount) external executor nonReentrant {
+        if(amount==0||amount>burnBalance[platformToken])revert Invalid();
+        burnBalance[platformToken]-=amount;
+        uint256 bal=_balance(platformToken);uint256 supply=IERC20(platformToken).totalSupply();
+        IPlatformBurnable(platformToken).burn(amount);
+        if(_balance(platformToken)+amount!=bal||IERC20(platformToken).totalSupply()+amount!=supply)revert TransferMismatch();
+        emit PlatformTokensBurned(amount);
     }
     function swapDigest(SwapPlan calldata p) public view returns(bytes32){return _hashTypedDataV4(keccak256(abi.encode(SWAP_TYPEHASH,p)));}
     function liquidityDigest(LiquidityPlan calldata p) public view returns(bytes32){return _hashTypedDataV4(keccak256(abi.encode(LIQUIDITY_TYPEHASH,p)));}
@@ -167,8 +197,12 @@ contract OursPlatformTreasury is Ownable2Step, ReentrancyGuard, EIP712 {
         IV4Manager.PoolKey memory key=pools[p.poolId];
         if(!swapPools[p.poolId]||(p.assetIn!=key.currency0&&p.assetIn!=key.currency1)||!feeAssets[p.assetIn])revert BadPlan();
         address assetOut=p.assetIn==key.currency0?key.currency1:key.currency0;
-        if((assetOut!=platformToken&&!stockAssets[assetOut])||(p.retainOutput&&assetOut!=platformToken)
-            ||p.maxAmountIn==0||p.maxAmountIn>strategyBalance[p.assetIn]||p.maxAmountIn>batchCaps[p.assetIn]
+        uint256 available=p.purpose==StrategyPurpose.BurnBuyback?burnBalance[p.assetIn]
+            :p.purpose==StrategyPurpose.LiquidityAcquire?liquidityBalance[p.assetIn]:rewardBalance[p.assetIn];
+        if((p.purpose==StrategyPurpose.BurnBuyback&&assetOut!=platformToken)
+            ||(p.purpose==StrategyPurpose.LiquidityAcquire&&assetOut!=platformToken&&!stockAssets[assetOut])
+            ||(p.purpose==StrategyPurpose.RewardAcquire&&assetOut!=platformToken)
+            ||p.maxAmountIn==0||p.maxAmountIn>available||p.maxAmountIn>batchCaps[p.assetIn]
             ||p.maxAmountIn>uint256(uint128(type(int128).max))||p.minAmountOut==0||p.sqrtPriceLimitX96==0)revert BadPlan();
         _authorize(swapDigest(p),p.deadline,p.nonce,p.signerEpoch,signature);
         uint256 beforeIn=_balance(p.assetIn);uint256 beforeOut=_balance(assetOut);
@@ -177,15 +211,28 @@ contract OursPlatformTreasury is Ownable2Step, ReentrancyGuard, EIP712 {
         _unlock(c);
         uint256 spent=beforeIn-_balance(p.assetIn);uint256 received=_balance(assetOut)-beforeOut;
         if(spent==0||spent>p.maxAmountIn||received<p.minAmountOut)revert TransferMismatch();
-        strategyBalance[p.assetIn]-=spent;
-        if(p.retainOutput)retainedPlatformTokens+=received;else strategyBalance[assetOut]+=received;
-        emit Swapped(p.poolId,p.assetIn,assetOut,spent,received,p.retainOutput);
+        if(p.purpose==StrategyPurpose.BurnBuyback){
+            burnBalance[p.assetIn]-=spent;
+            uint256 bal=_balance(platformToken);uint256 supply=IERC20(platformToken).totalSupply();
+            IPlatformBurnable(platformToken).burn(received);
+            if(_balance(platformToken)+received!=bal||IERC20(platformToken).totalSupply()+received!=supply)revert TransferMismatch();
+            emit PlatformTokensBurned(received);
+        }else if(p.purpose==StrategyPurpose.LiquidityAcquire){
+            liquidityBalance[p.assetIn]-=spent;liquidityBalance[assetOut]+=received;
+        }else{
+            rewardBalance[p.assetIn]-=spent;rewardBalance[assetOut]+=received;
+        }
+        emit Swapped(p.poolId,p.assetIn,assetOut,spent,received,p.purpose);
+    }
+    function releaseRewards(uint256 amount) external nonReentrant {
+        if(msg.sender!=rewardDistributor||amount==0||amount>rewardBalance[platformToken])revert Unauthorized();
+        rewardBalance[platformToken]-=amount;_sendExact(platformToken,rewardDistributor,amount);emit RewardsReleased(amount);
     }
     function positionId(bytes32 poolId,int24 lower,int24 upper,bytes32 salt) public pure returns(bytes32){return keccak256(abi.encode(poolId,lower,upper,salt));}
     function addLiquidity(LiquidityPlan calldata p,bytes calldata signature) external executor running nonReentrant {
         IV4Manager.PoolKey memory key=pools[p.poolId];
         if(!liquidityPools[p.poolId]||!_knownAsset(key.currency0)||!_knownAsset(key.currency1)
-            ||p.maxAmount0>strategyBalance[key.currency0]||p.maxAmount1>strategyBalance[key.currency1]
+            ||p.maxAmount0>liquidityBalance[key.currency0]||p.maxAmount1>liquidityBalance[key.currency1]
             ||p.maxAmount0+p.maxAmount1==0||p.minAmount0!=0||p.minAmount1!=0)revert BadPlan();
         _authorize(liquidityDigest(p),p.deadline,p.nonce,p.signerEpoch,signature);_modify(p,true);
     }
@@ -200,8 +247,7 @@ contract OursPlatformTreasury is Ownable2Step, ReentrancyGuard, EIP712 {
         emit LiquidityFeesHarvested(id,_balance(key.currency0)-before0,_balance(key.currency1)-before1);
     }
     function removalAction(LiquidityPlan calldata p) public view returns(bytes32){return keccak256(abi.encode(block.chainid,address(this),"REMOVE_LIQUIDITY",p));}
-    function withdrawalAction(address asset,uint256 amount,bool fromRetained,bytes32 salt) public view returns(bytes32){return keccak256(abi.encode(block.chainid,address(this),"WITHDRAW",asset,amount,fromRetained,salt));}
-    /// @notice Governance queues an exact removalAction or withdrawalAction; no arbitrary call execution.
+    /// @notice Governance queues an exact LP removal; strategy and reward funds have no treasury withdrawal path.
     function queueAction(bytes32 action) external onlyOwner {
         if(action==0||queuedAt[action]!=0||completedActions[action])revert Invalid();
         queuedAt[action]=block.timestamp+governanceDelay;emit ActionQueued(action,queuedAt[action]);
@@ -217,12 +263,6 @@ contract OursPlatformTreasury is Ownable2Step, ReentrancyGuard, EIP712 {
     function removeLiquidity(LiquidityPlan calldata p) external nonReentrant {
         if(p.deadline<block.timestamp||p.maxAmount0!=0||p.maxAmount1!=0||(p.minAmount0==0&&p.minAmount1==0))revert BadPlan();
         _consumeAction(removalAction(p));_modify(p,false);
-    }
-    function withdraw(address asset,uint256 amount,bool fromRetained,bytes32 salt) external nonReentrant {
-        if(amount==0)revert Invalid();_consumeAction(withdrawalAction(asset,amount,fromRetained,salt));
-        if(fromRetained){if(asset!=platformToken)revert Invalid();retainedPlatformTokens-=amount;}
-        else strategyBalance[asset]-=amount;
-        _sendExact(asset,treasuryRecipient,amount);emit Withdrawn(asset,amount,fromRetained);
     }
     function _modify(LiquidityPlan calldata p,bool add) private {
         IV4Manager.PoolKey memory key=pools[p.poolId];
@@ -240,8 +280,8 @@ contract OursPlatformTreasury is Ownable2Step, ReentrancyGuard, EIP712 {
     }
     function _reconcile(address asset,uint256 before_,uint256 maxSpend,uint256 minReceive) private {
         uint256 after_=_balance(asset);
-        if(after_<before_){uint256 spent=before_-after_;if(spent>maxSpend||minReceive!=0)revert TransferMismatch();strategyBalance[asset]-=spent;}
-        else{uint256 received=after_-before_;if(received<minReceive)revert TransferMismatch();strategyBalance[asset]+=received;}
+        if(after_<before_){uint256 spent=before_-after_;if(spent>maxSpend||minReceive!=0)revert TransferMismatch();liquidityBalance[asset]-=spent;}
+        else{uint256 received=after_-before_;if(received<minReceive)revert TransferMismatch();liquidityBalance[asset]+=received;}
     }
     function _unlock(Callback memory c) private {
         bytes memory data=abi.encode(c);activeCallback=keccak256(data);manager.unlock(data);if(activeCallback!=0)revert Invalid();
