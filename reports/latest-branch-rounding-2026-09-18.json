@@ -1,0 +1,11 @@
+{
+  "commit": "e22f80a785fd615ddc9fcf349ae93161cf8e4a71",
+  "compiler": "0.8.30+commit.73712a01.Emscripten.clang",
+  "checks": [
+    "collect 9 then 1: Panic(0x11)",
+    "deposit after 9 plus 1 and plus 2: Panic(0x11)",
+    "actual failed collect rolls back, due remains 1, treasury remains 9",
+    "pending fees grown to 3: collection succeeds, gross=12"
+  ],
+  "passed": true
+}

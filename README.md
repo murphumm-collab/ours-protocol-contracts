@@ -1,5 +1,7 @@
 # OURS protocol contracts
 
+**最新业务确认（2026-09-18）**：平台收入采用固定 50% 回购销毁 / 20% 股票流动性 / 10% 贡献奖励 / 20% 运营；LP 手动管理且不销毁。完整目标、分支差异及必须修复的整合事项见 [最终业务方案](FINAL_REVENUE_PLAN.zh-CN.md)。下文和本分支 Solidity 仍描述原有实现，不表示新版方案已完成。
+
 独立私有仓库：`murphumm-collab/ours-protocol-contracts`。由原前端工作区的收益合约与安全测试拆出，本仓库不含前端。
 
 可执行的收益模块实现，配套 Solidity ABI、部署脚本、分红清单生成器及本地 EVM 测试。
