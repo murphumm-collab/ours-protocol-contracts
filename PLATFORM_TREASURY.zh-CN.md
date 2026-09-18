@@ -12,34 +12,36 @@
                └─ 平台自己的 claimableIncome
                         ↓ 新合约调用 collectFees
                  OursPlatformTreasury
-                        ├─ 80% → strategyBalance（策略预算）
-                        │          ├─ 买入平台 Token → 保留桶，或 LP 可用库存
-                        │          ├─ 买入股票 Token → LP 可用库存
-                        │          └─ 添加 V4 流动性 → 合约持有的 LP 仓位
+                        ├─ 50% → burnBalance → 买入平台 Token → 真实 burn
+                        ├─ 20% → liquidityBalance → 买入股票/平台 Token → V4 LP
+                        ├─ 10% → rewardBalance → 买入平台 Token → 固定奖励分配合约
                         └─ 20% → operatingBalance → 固定平台收款地址
 ```
 
-例如项目自定义开关打开，交易费 100 的平台收入为 30：新合约拿这 30 再分成 **24 策略预算 + 6 平台留存**。项目另外的 70 不受影响。若项目关闭自定义、100 全归平台，则这 100 中的 80 进入策略、20 留存。80% 是固定常量，不能被管理员改成其他比例。
+例如项目自定义开关打开，交易费 100 的平台收入为 30：新合约把平台所得 30 累计分为 **15 销毁、6 流动性、3 奖励、6 国库**。项目另外的 70 不受影响。若项目关闭自定义、100 全归平台，则按 **50/20/10/20** 分配。
 
-使用累计金额计算 80%，避免通过拆分入账改变最终分配；小额整数舍入按累计策略份额向下取整处理。80% 内部用于回购、股票和 LP 的金额没有硬编码，按平台批准的签名计划执行。LP 手续费全部留在策略预算内，不再次切走 20%。`batchCap` 限制兑换输入；LP 建仓另受签名的两边最大支出和现有策略库存限制。
+四个比例分别按累计金额向下取整，避免拆分入账改变最终分配。整数尾差保存在 `unallocatedDust`，不得提前计入销毁或其他可用预算，后续入账时共同补足分配。`accountedBalance` 包括四桶余额和尾差；`strategyBalance` 只包括三个用途桶，不含尾差。例如累计 9 的四桶为 4/1/0/1，尾差 3；再入账 1 后，四桶为 5/2/1/2，尾差归零。
+
+`FeesCollected` 记录四桶本批增量；增量合计可能大于本批收入，因为会释放旧尾差。索引器应同时处理 `RevenueDustUpdated`。四个账本不可互借：销毁桶只能买平台 Token 并立即 burn；流动性桶只能买平台/股票 Token 和建 LP；奖励桶只能买平台 Token 并交给构造时固定的奖励分配合约；国库桶只能进入固定国库地址。
 
 ## 接入原收益合约
 
-1. 部署新合约，构造指定原 `OursFeePool`、可信 V4 PoolManager、平台 Token、治理钱包、平台固定收款地址、报价签名者及治理延时。
+1. 部署新合约，构造指定原 `OursFeePool`、可信 V4 PoolManager、平台 Token、治理钱包、平台固定收款地址、固定奖励分配合约、报价签名者及治理延时。
 2. 配置可接收的 fee 资产、股票 Token、单批限额、交换池与 LP 池白名单、操作员。
 3. 经明确操作，把 Registry 的 `platformRecipient` 设置为新合约地址。现有项目需要新版本 Policy 生效后，才使用这个新收款地址；旧版本历史收款人不会被改写。
 4. 任意地址可触发新合约 `collectFees(asset)`，但 FeePool 始终只向新合约支付它自己的应得收入，触发者不能指定项目或收款人。
-5. 历史上已经领取到平台的钱可由治理通过 `depositPlatformFees` 存入，同样按 80/20 处理。这只是治理存款入口，不会链上证明其历史来源。外部直接转账不会自动增加可用预算。
+5. 历史上已经领取到平台的钱可由治理通过 `depositPlatformFees` 存入，同样按 50/20/10/20 处理。这只是治理存款入口，不会链上证明其历史来源。外部直接转账不会自动增加可用预算。
 
 `claimOperating` 只把 20% 已记账留存付给构造时确定的平台地址。任何触发者都不能把这笔钱改发给自己。
 
-## 回购、保留与股票买入
+## 回购销毁、股票买入与奖励
 
-- `executeSwap` 需要平台操作员或治理提交有效 EIP-712 报价计划。绑定合约地址、链 ID、PoolId、输入上限、输出下限、价格限制、是否保留、期限、nonce 和签名者版本。
-- 只用 strategyBalance 中可用的 fee 资产买入平台 Token 或白名单股票 Token；输出接收方固定为本合约。
-- `retainOutput=true` 只适用于买回的平台 Token，进入 `retainedPlatformTokens`。没有销毁；这里与原项目 Meme 回购 burn 的策略不同。
-- LP 准备库存可通过 `reservePlatformTokens(amount)` 移入保留桶。保留桶不能参与普通 swap 或 LP 建仓；释放必须经过治理队列和延时提款。
-- 退款/部分成交以实际余额变化记账，平台 20% 和保留桶不会被兑换预算借用。没有任意 router calldata、delegatecall 或常驻 Token 授权。
+- `executeSwap` 需要平台操作员或治理提交有效 EIP-712 报价计划。计划额外绑定 `purpose`：0 销毁回购、1 流动性资产获取、2 奖励资产获取。
+- purpose 0 只能花 `burnBalance`、只能输出平台 Token；到账后立即调用 `burn` 并验证本合约余额与 `totalSupply` 同额下降。
+- 如果平台收入本身就是平台 Token，可用 `burnPlatformTokens` 从销毁桶直接 burn，无需做无意义兑换。
+- purpose 1 只能花 `liquidityBalance`，输出只能是平台 Token 或白名单股票 Token；所得只能继续用于 LP。
+- purpose 2 只能花 `rewardBalance`、只能输出平台 Token；只有固定 `rewardDistributor` 合约能调用 `releaseRewards` 领取。
+- 退款/部分成交以实际余额变化记账，四个用途账本互不借用。没有任意 router calldata、delegatecall 或常驻 Token 授权。
 - 原生 fee 和 ERC20 fee 都支持；费用型、rebase、虚报余额等不可靠资产不属于支持范围。
 
 ## LP
@@ -56,7 +58,7 @@
 - LP 仓位直接归本合约持有，使用 `(PoolId,tickLower,tickUpper,salt)` 标识。不是可转移的 ERC721 LP NFT；合约不提供把 LP 转给操作员的入口。
 - `harvestLiquidityFees`：收取已有 LP 的手续费，实际到账进入策略库存；不会减少仓位，不支付给执行人，不允许出现净支出。
 - `removeLiquidity`：治理排队一个完整计划，延时后才能执行；最小回收金额固定，资产只能回到本合约。取消白名单或暂停买入不阻止治理按队列退出已有仓位。
-- `withdraw`：策略库存或保留 Token 的提取也必须由治理排队，等待构造时固定的延时；币种、金额、所属桶、salt 全部绑定。接收方只能是固定平台收款地址。
+- 合约不提供销毁、流动性或奖励账本向国库提款的入口。LP 退出资产仍回到流动性账本；只有 20% `operatingBalance` 可转入固定国库。
 
 治理地址可以是多签。本合约不自行实现多签或证明某地址确为多签；实际钱包、配对、分配计划和锁定延时需要部署配置。排队后任何人可触发执行，但无法修改目标或拿走资金；谁发交易谁付 Gas。
 
@@ -68,15 +70,15 @@ npm run test:platform
 npm run check
 ```
 
-新增测试覆盖真实 FeePool → 新合约的 30 → 24/6 分账、累计舍入、外部误转、回购保留、股票买入、LP 增减和手续费、原生资产部分成交、超额预算、伪造到账、签名/重放、暂停、治理延时、取消和错误提款参数。全部只使用本地临时 EVM。
+测试覆盖真实 FeePool → 新合约的 30 → 15/6/3/6 分账、累计舍入、四桶隔离、真实 burn、固定奖励接收方、无策略提款、股票买入、LP 增减和手续费、原生资产部分成交、超额预算、伪造到账、签名/重放、暂停及治理延时。全部只使用本地临时 EVM。
 
 `PlatformManager` 是带余额结算检查的协议替身，没有真实 V4 曲线、集中流动性数学或 Hook。测试通过不等于真实池集成验收，正式使用仍需真实 V4 fork 和独立安全审计。
 
-## 历史结果（2026-09-17）
+## 历史结果（合并前审查分支）
 
-完整 `npm run check` 退出码 0，59 项全部通过，其中新平台模块 9 项。两个部署脚本均完成本地演练；完整输出见 [platform-check-2026-09-17.log](reports/platform-check-2026-09-17.log)。合约运行字节码为 18,065 字节。
+修复后完整回归为 75 项 Node 测试及 1 项部署 CLI 测试全部通过，其中平台模块 19 项。新增覆盖 V4 原生结算、奖励池白名单、治理交接、失败恢复、重入、受限 Token、捐赠隔离和生成式资金守恒。两个部署脚本均完成本地演练。合约运行字节码为 20,099 字节。
 
-最新的复现、修复与完整回归见 [DEEP_VALIDATION.md](DEEP_VALIDATION.md)。新增测试使用官方 V4 核心在本地验证实际兑换、LP 及受控 Hook 结算，不是目标链 fork。
+合并后的结果见 [MERGE_VALIDATION.zh-CN.md](MERGE_VALIDATION.zh-CN.md)。[DEEP_VALIDATION.md](DEEP_VALIDATION.md) 保留旧版验证记录。官方 V4 核心测试在本地验证实际兑换、LP 及受控 Hook 结算，不是目标链 fork。
 
 执行加仓时现会重新核验股票资产资格，撤销资格会阻止继续加仓。平台合约禁止 `renounceOwnership`，以保留资产退出所需的治理权限；正常更换治理仍使用两步所有权交接。
 
@@ -88,7 +90,9 @@ npm run check
 RPC_URL=... DEPLOYER_KEY=... node scripts/deploy-platform.mjs platform-config.json
 ```
 
-必要字段：`chainId`、`registry`、`feePool`、`v4PoolManager`、`platformToken`、`governance`、`treasuryRecipient`、`quoteSigner`、`governanceDelay`、`assets`。每个 asset 含 `address`、`feeAsset`、`stockAsset`、`batchCap`。可加 `operators`、`pools`（key、swapEnabled、liquidityEnabled）及 `outputFile`。
+必要字段：`chainId`、`registry`、`feePool`、`v4PoolManager`、`platformToken`、`governance`、`treasuryRecipient`、`rewardDistributor`、`quoteSigner`、`governanceDelay`、`assets`。`rewardDistributor` 必须是已部署合约。每个 asset 含 `address`、`feeAsset`、`stockAsset`、`batchCap`。可加 `operators`、`pools`（key、swapEnabled、liquidityEnabled）及 `outputFile`。
+
+**部署阻断项：当前仓库只有测试奖励分配器，没有生产贡献奖励合约。** 不能填一个任意有代码的地址或 `OursDividendPool` 来代替；代码存在检查不证明能调用 `releaseRewards` 或向用户分配。Treasury 的分配器地址不可变，正式部署前须完成生产分配器和领取联调。
 
 脚本核对链和 FeePool/Registry 双向绑定，部署后配置并发起两步治理交接。**不会自动修改 Registry 收款人、自动初始化池、买币或加 LP。** 私钥只通过环境变量提供，不应写进配置或仓库。
 

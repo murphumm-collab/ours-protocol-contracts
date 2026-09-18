@@ -10,7 +10,8 @@
     "test:security": "node --test --test-name-pattern=security: test/revenue.test.mjs",
     "test:platform": "node --test --test-name-pattern=platform: test/revenue.test.mjs",
     "test:v4": "npm run compile && node --test test/real-v4.integration.mjs",
-    "test:deep": "node --test --test-name-pattern=deep test/revenue.test.mjs"
+    "test:deep": "node --test --test-name-pattern=deep test/revenue.test.mjs",
+    "test:rounding": "node --test --test-name-pattern=\"rounding regression\" test/revenue.test.mjs"
   },
   "dependencies": {
     "@openzeppelin/contracts": "5.4.0"

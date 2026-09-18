@@ -29,11 +29,11 @@ test('deployment CLIs configure revenue contracts plus independent platform trea
   for(const adapter of [curve,v4])assert.equal(await registry.allowedAdapters(adapter.target),true);
   assert(!JSON.stringify(d).includes(accounts[0][1].secretKey));
   const platformConfig=path.join(dir,'platform-config.json'),platformOutput=path.join(dir,'platform-deployment.json');
-  await fs.writeFile(platformConfig,JSON.stringify({chainId:4663,registry:registry.target,feePool:fee.target,v4PoolManager:noop,platformToken:noop,governance,treasuryRecipient:treasury,quoteSigner,governanceDelay:20,assets:[{address:ethers.ZeroAddress,feeAsset:true,batchCap:'100000'}],operators:[operator],outputFile:platformOutput}));
+  await fs.writeFile(platformConfig,JSON.stringify({chainId:4663,registry:registry.target,feePool:fee.target,v4PoolManager:noop,platformToken:noop,governance,treasuryRecipient:treasury,rewardDistributor:noop,quoteSigner,governanceDelay:20,assets:[{address:ethers.ZeroAddress,feeAsset:true,batchCap:'100000'}],operators:[operator],outputFile:platformOutput}));
   await run(process.execPath,['scripts/deploy-platform.mjs',platformConfig],{cwd:root,env:{...process.env,RPC_URL:url,DEPLOYER_KEY:accounts[0][1].secretKey},timeout:90000});
   const pd=JSON.parse(await fs.readFile(platformOutput,'utf8')),pa=JSON.parse(await fs.readFile(path.join(root,'artifacts/OursPlatformTreasury.json'),'utf8'));
   const platform=new ethers.Contract(pd.OursPlatformTreasury,pa.abi,provider);
-  assert.notEqual(await provider.getCode(platform.target),'0x');assert.equal(await platform.pendingOwner(),governance);assert.equal(await platform.feePool(),fee.target);assert.equal(await platform.treasuryRecipient(),treasury);assert.equal(await platform.STRATEGY_BPS(),8000n);assert.equal(await platform.operators(operator),true);
+  assert.notEqual(await provider.getCode(platform.target),'0x');assert.equal(await platform.pendingOwner(),governance);assert.equal(await platform.feePool(),fee.target);assert.equal(await platform.treasuryRecipient(),treasury);assert.equal(await platform.rewardDistributor(),noop);assert.equal(await platform.BURN_BPS(),5000n);assert.equal(await platform.LIQUIDITY_BPS(),2000n);assert.equal(await platform.REWARD_BPS(),1000n);assert.equal(await platform.OPERATING_BPS(),2000n);assert.equal(await platform.operators(operator),true);
   // Deployment does not silently change the existing revenue destination.
   assert.equal(await registry.platformRecipient(),treasury);
   const before=await provider.getTransactionCount(admin,'latest');

@@ -202,6 +202,17 @@ test('V4 adapter authenticates callback/canonical pool, settles actual deltas, a
  const badRoute=abi.encode([keyType,'uint160'],[{...key,fee:500},1n]);const bad=await plan(f,f.buy,1,f.asset,f.meme.target,1000n,1000n,{route:badRoute,overrides:{adapter:adapter.target,nonce:2}});
  await assert.rejects(tx(f.buy.connect(f.creator).executeBuyback(bad.p,bad.route,bad.signature)));
 });
+test('V4 reward-pool allowlist and adapter ownership handover control independent stock acquisition',async()=>{
+ const f=await setup(true);await collect(f,10000n);const manager=await deploy('test/mocks/Mocks.sol','MockV4Manager');
+ const adapter=await deploy('src/adapters/OursV4Adapter.sol','OursV4Adapter',[f.reg.target,manager.target,f.admin.address]);await tx(f.reg.setAdapter(adapter.target,true));
+ const currencies=[zero,f.stock.target].sort((a,b)=>BigInt(a)<BigInt(b)?-1:1),key={currency0:currencies[0],currency1:currencies[1],fee:3000,tickSpacing:60,hooks:zero};
+ const keyType='tuple(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks)',route=abi.encode([keyType,'uint160'],[key,1n]);
+ await assert.rejects(tx(adapter.connect(f.other).setRewardPool(key,true)));await tx(adapter.setRewardPool(key,true));
+ const good=await plan(f,f.div,2,zero,f.stock.target,1000n,2000n,{route,overrides:{adapter:adapter.target}});await tx(f.div.connect(f.creator).acquireReward(good.p,good.route,good.signature));
+ assert.equal(await f.div.rewardInventory(f.meme.target,1),2000n);
+ await tx(adapter.transferOwnership(f.other.address));await tx(adapter.connect(f.other).acceptOwnership());await assert.rejects(tx(adapter.setRewardPool(key,false)));await tx(adapter.connect(f.other).setRewardPool(key,false));
+ const blocked=await plan(f,f.div,2,zero,f.stock.target,1000n,2000n,{route,overrides:{adapter:adapter.target,nonce:2}});await assert.rejects(tx(f.div.connect(f.creator).acquireReward(blocked.p,blocked.route,blocked.signature)));
+});
 test('ERC1271 quote signer support and pause do not prevent existing income claims',async()=>{
  const f=fixture;await collect(f,10000n);const signer=await deploy('test/mocks/Mocks.sol','Mock1271');await tx(f.reg.setQuoteSigner(signer.target));
  const x=await plan(f,f.buy,1,f.asset,f.meme.target,1000n,2000n);await tx(signer.set(await f.buy.planDigest(x.p)));
@@ -340,6 +351,38 @@ test('extreme and generated allocation ratios conserve liabilities across histor
    for(const pool of [f.fee,f.buy,f.div])assert.equal(await f.quote.balanceOf(pool.target),await pool.totalLiability(f.asset));
   }
  }
+});
+
+test('post-launch: Registry two-step governance handover revokes the old owner and preserves project state',async()=>{
+ const f=fixture;await tx(f.reg.transferOwnership(f.other.address));await assert.rejects(tx(f.reg.connect(f.creator).acceptOwnership()));await tx(f.reg.connect(f.other).acceptOwnership());
+ await assert.rejects(tx(f.reg.setOperator(f.user.address,true)));await tx(f.reg.connect(f.other).setOperator(f.user.address,true));
+ assert.equal(await f.reg.owner(),f.other.address);assert.equal(await f.reg.controllerOf(f.meme.target),f.creator.address);assert.equal(await f.reg.canExecute(f.meme.target,f.user.address),true);
+});
+
+test('post-launch: replacing a pending project controller prevents the superseded address taking control',async()=>{
+ const f=fixture;await tx(f.reg.connect(f.creator).proposeController(f.meme.target,f.other.address));await tx(f.reg.connect(f.creator).proposeController(f.meme.target,f.user.address));
+ await assert.rejects(tx(f.reg.connect(f.other).acceptController(f.meme.target)));await tx(f.reg.connect(f.user).acceptController(f.meme.target));
+ assert.equal(await f.reg.controllerOf(f.meme.target),f.user.address);await assert.rejects(tx(f.reg.connect(f.creator).schedulePolicy(f.meme.target,f.policy)));
+});
+
+test('post-launch: reviewer rotation immediately revokes the old reviewer without blocking future epochs',async()=>{
+ const f=fixture;await collect(f,10000n);await tx(f.reg.setReviewer(f.other.address));const timestamp=await now();await advance(60-(timestamp%60)+2);
+ const logs=await f.div.queryFilter(f.div.filters.BudgetReceived());const fundedBlock=await provider.getBlock(logs[0].blockNumber);const period=Math.floor(fundedBlock.timestamp/60);const b=await provider.getBlock((await provider.getBlockNumber())-1);
+ await assert.rejects(tx(f.div.connect(f.reviewer).recordSnapshot(f.meme.target,period,b.number,b.hash)));
+ await tx(f.div.connect(f.other).recordSnapshot(f.meme.target,period,b.number,b.hash));await tx(f.div.connect(f.creator).fundEpoch(f.meme.target,1,period));
+ const id=await f.div.epochId(f.meme.target,1,period);await tx(f.div.connect(f.other).proposeDistribution(id,ethers.id('root'),ethers.id('manifest'),1));
+});
+
+test('post-launch: a temporarily blocked income recipient cannot erase or redirect its claim',async()=>{
+ const f=fixture;await collect(f,100n);assert.equal(await f.fee.claimableIncome(f.creator.address,f.asset),14n);await tx(f.quote.setBlocked(f.creator.address,true));
+ await assert.rejects(tx(f.fee.connect(f.creator).claimIncome(f.asset)));assert.equal(await f.fee.claimableIncome(f.creator.address,f.asset),14n);
+ await tx(f.quote.setBlocked(f.creator.address,false));await tx(f.fee.connect(f.creator).claimIncome(f.asset));assert.equal(await f.quote.balanceOf(f.creator.address),14n);
+});
+
+test('post-launch: unsolicited native transfers remain outside every liability ledger',async()=>{
+ const f=await setup(true);for(const pool of [f.fee,f.buy,f.div])await tx(f.admin.sendTransaction({to:pool.target,value:777n}));await collect(f,100n);
+ for(const pool of [f.fee,f.buy,f.div])assert.equal((await provider.getBalance(pool.target))-await pool.totalLiability(zero),777n);
+ assert.equal(await f.buy.budget(f.meme.target,zero,1),28n);assert.equal(await f.div.budget(f.meme.target,zero,1),28n);
 });
 
 registerSecurityTests({test,assert,ethers,abi,tx,deploy,setup,collect,plan,advance,fundEpoch,publish,getFixture:()=>fixture});

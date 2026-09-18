@@ -1,5 +1,7 @@
 # 合约全面测试记录
 
+本次合并后的权威记录见 [MERGE_VALIDATION.zh-CN.md](MERGE_VALIDATION.zh-CN.md)。以下和 DEEP_VALIDATION 中的计数是各历史版本结果。
+
 最新验证（2026-09-18）见 [DEEP_VALIDATION.md](DEEP_VALIDATION.md)。以下保留 2026-09-17 历史结果及当时的未完成事项。
 
 本轮对象是 `contracts/` 中新编写的 OURS 收益模块、分红清单工具与部署脚本。不是已完成生产接入的 PONS 全套发行协议。

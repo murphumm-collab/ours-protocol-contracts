@@ -1,10 +1,12 @@
 # OURS protocol contracts
 
-**最新业务确认（2026-09-18）**：平台收入采用固定 50% 回购销毁 / 20% 股票流动性 / 10% 贡献奖励 / 20% 运营；LP 手动管理且不销毁。完整目标、分支差异及必须修复的整合事项见 [最终业务方案](FINAL_REVENUE_PLAN.zh-CN.md)。下文和本分支 Solidity 仍描述原有实现，不表示新版方案已完成。
+**最新业务确认（2026-09-18）**：平台收入采用固定 50% 回购销毁 / 20% 股票流动性 / 10% 贡献奖励 / 20% 运营；LP 手动管理且不销毁。四桶实现与安全保护统一维护在现有 `codex/contracts` 分支，舍入尾差单独记账。完整规则见 [最终业务方案](FINAL_REVENUE_PLAN.zh-CN.md)，本次修改与测试见 [合并记录](MERGE_VALIDATION.zh-CN.md)。生产奖励分配器与真实 PONS 接入仍未完成，不能直接部署接收真实资金。
 
 独立私有仓库：`murphumm-collab/ours-protocol-contracts`。由原前端工作区的收益合约与安全测试拆出，本仓库不含前端。
 
 可执行的收益模块实现，配套 Solidity ABI、部署脚本、分红清单生成器及本地 EVM 测试。
+
+完整本地场景见 [测试覆盖矩阵](TEST_COVERAGE_MATRIX.zh-CN.md)。
 
 **尚未部署、未审计；PONS Factory/Curve/Hook 的生产接入和真实 V4 fork 测试尚未完成。**
 
@@ -18,7 +20,7 @@
 | `OursDividendPool` | 股票 Token 等分红资产购买；按期资金桶；快照登记；多签审核 root；用户自行领取；防重复与总额限制 |
 | `OursCurveAdapter` | PONS buy/sell ABI，内盘阶段校验、退款和准确额度授权 |
 | `OursV4Adapter` | PoolManager unlock/swap/settle/take；认证回调；项目 canonical pool 校验；分红资产池白名单；单跳 exact-input |
-| `OursPlatformTreasury` | 平台实际 fee 的 80/20 分账；平台 Token 回购保留、股票 Token 买入、V4 LP 建仓/收手续费/延时退出；与项目收益池独立 |
+| `OursPlatformTreasury` | 平台实际 fee 固定 50% 回购销毁、20% 股票流动性、10% 奖励、20% 国库；四账本隔离；与项目收益池独立 |
 | `OursFeeAccrual` | **抽象接入组件**：交易发生时绑定版本，按版本累计并 sweep；毕业后仍可结算历史费用 |
 
 **分红只有用户 `claim` 的发放路径，没有遍历持有人或批量空投。** 用户支付领取 Gas。执行池由平台 operator 或项目 controller 触发，谁提交交易谁付 Gas；没有从池中报销 Gas 的入口。
@@ -119,7 +121,7 @@ node scripts/dividend-manifest.mjs holders.json manifest.json
 - 不提供 PONS 原版不一致源码的自动修复或上线部署；真实 Factory/Curve/Hook 集成及真实 V4 fork 仍需完成。
 - 审核者能发布不公平但合法的 Merkle root；金额上限防超支，不消除审核信任。Root 只在延时前可撤销，激活后不能回收用户权益。
 - 股权类资产可能有冻结/准入限制，白名单需人工核验；合约不绕过限制。
-- 原有项目收益池暂停兑换不暂停已经归属的领取；这些池没有管理员提款/任意调用/升级入口。独立平台 Treasury 另有延时向固定平台地址提款的功能。未知误转资产会留在合约，避免错误救援侵占义务余额。
+- 原有项目收益池暂停兑换不暂停已经归属的领取；这些池没有管理员提款/任意调用/升级入口。平台 Treasury 仅允许运营桶向固定平台收款地址领取，已删除通用策略提款；LP 延时退出回到流动性桶。未知误转资产会留在合约，避免错误救援侵占义务余额。
 - 首版无自动 Gatekeeper 代付、外部 keeper 奖励或每日总交易限额；应由受限操作服务另外控制。
 
 完整测试结果与剩余边界见 [VALIDATION.md](VALIDATION.md)。
@@ -128,4 +130,4 @@ node scripts/dividend-manifest.mjs holders.json manifest.json
 
 安全测试补充见 [SECURITY_TESTS.md](SECURITY_TESTS.md)，可用 `npm run test:security` 独立执行。
 
-平台 80% 收益模块详见 [PLATFORM_TREASURY.zh-CN.md](PLATFORM_TREASURY.zh-CN.md)。原有部署脚本保持收益池范围；新模块使用独立的 `scripts/deploy-platform.mjs`。
+平台四桶收入模块详见 [PLATFORM_TREASURY.zh-CN.md](PLATFORM_TREASURY.zh-CN.md)。原有部署脚本保持收益池范围；平台模块使用独立的 `scripts/deploy-platform.mjs`。
