@@ -1,0 +1,84 @@
+TAP version 13
+# bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+# This version of µWS is not compatible with your Node.js build:
+# Error: Cannot find module '../binaries/uws_darwin_arm64_127.node'
+# Require stack:
+# - /Users/mo/Documents/ours-protocol-contracts/node_modules/ganache/node_modules/@trufflesuite/uws-js-unofficial/src/uws.js
+# - /Users/mo/Documents/ours-protocol-contracts/node_modules/ganache/dist/node/core.js
+# Falling back to a NodeJS implementation; performance may be degraded.
+# Subtest: independent token deployer: security and integration boundaries
+    # Subtest: offline prediction equals onchain prediction and suffix
+    ok 1 - offline prediction equals onchain prediction and suffix
+      ---
+      duration_ms: 16.735167
+      type: 'test'
+      ...
+    # Subtest: non-factory callers cannot deploy or steal a searched salt
+    ok 2 - non-factory callers cannot deploy or steal a searched salt
+      ---
+      duration_ms: 8.448125
+      type: 'test'
+      ...
+    # Subtest: wrong suffix is rejected
+    ok 3 - wrong suffix is rejected
+      ---
+      duration_ms: 31.298167
+      type: 'test'
+      ...
+    # Subtest: registration failure rolls back token deployment; retry succeeds
+    ok 4 - registration failure rolls back token deployment; retry succeeds
+      ---
+      duration_ms: 175.9395
+      type: 'test'
+      ...
+    # Subtest: duplicate deployment cannot replace token
+    ok 5 - duplicate deployment cannot replace token
+      ---
+      duration_ms: 19.556333
+      type: 'test'
+      ...
+    # Subtest: creator, launch parameters and constructor arguments change prediction
+    ok 6 - creator, launch parameters and constructor arguments change prediction
+      ---
+      duration_ms: 41.089541
+      type: 'test'
+      ...
+    # Subtest: invalid configuration and invalid launch inputs rejected
+    ok 7 - invalid configuration and invalid launch inputs rejected
+      ---
+      duration_ms: 83.637916
+      type: 'test'
+      ...
+    # Subtest: reverting constructors leave no token or consumed salt
+    ok 8 - reverting constructors leave no token or consumed salt
+      ---
+      duration_ms: 39.963791
+      type: 'test'
+      ...
+    # Subtest: empty runtime constructor is rejected
+    ok 9 - empty runtime constructor is rejected
+      ---
+      duration_ms: 56.915333
+      type: 'test'
+      ...
+    # Subtest: runtime stays within EIP-170
+    ok 10 - runtime stays within EIP-170
+      ---
+      duration_ms: 0.301875
+      type: 'test'
+      ...
+    1..10
+ok 1 - independent token deployer: security and integration boundaries
+  ---
+  duration_ms: 796.406292
+  type: 'test'
+  ...
+1..1
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1115.136041

@@ -1,0 +1,20 @@
+
+> compile
+> node scripts/compile.mjs
+
+Warning: Function state mutability can be restricted to view
+   --> src/platform/OursPlatformTreasury.sol:109:5:
+    |
+109 |     function renounceOwnership() public override onlyOwner { revert Invalid(); }
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+OursBuybackPool: 8675 bytes
+OursDividendPool: 13972 bytes
+OursFeePool: 11435 bytes
+OursProjectRegistry: 10497 bytes
+OursCurveAdapter: 2930 bytes
+OursV4Adapter: 5258 bytes
+OursRevenueTypes: 58 bytes
+OursTokenDeployer: 1916 bytes
+OursPlatformTreasury: 20285 bytes
