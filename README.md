@@ -4,6 +4,8 @@
 
 可执行的收益模块实现，配套 Solidity ABI、部署脚本、分红清单生成器及本地 EVM 测试。
 
+完整本地场景见 [测试覆盖矩阵](TEST_COVERAGE_MATRIX.zh-CN.md)。
+
 **尚未部署、未审计；PONS Factory/Curve/Hook 的生产接入和真实 V4 fork 测试尚未完成。**
 
 ## 实现范围

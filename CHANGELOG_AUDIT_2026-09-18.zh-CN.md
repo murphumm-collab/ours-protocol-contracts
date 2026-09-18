@@ -120,7 +120,7 @@ npm run check
 结果：
 
 - Solidity 编译通过；
-- 60 项 Node 业务、安全、随机状态和回归测试通过；
+- 75 项 Node 业务、安全、随机状态和回归测试通过；
 - 1 项部署 CLI 测试通过；
 - 0 失败；
 - 0 跳过；
@@ -170,9 +170,6 @@ Ganache 在当前 Node/macOS 环境回退到纯 JS 实现，属于性能提示�
 
 ## 八、GitHub 状态
 
-截至本记录生成时：
-
-- 未创建 commit；
-- 未 push；
-- 未覆盖远端 `codex/contracts`；
-- 建议先提交到新的审查修复分支，再发起 PR 合并。
+- 修复分支：`codex/audit-fixes-2026-09-18`
+- 检查点提交：`cb0f381c2bcf80cf877485b98c9442f353f56100`
+- 远端 `codex/contracts` 未被覆盖；后续完整回归结果将在同一修复分支追加提交。

@@ -2,9 +2,9 @@
 
 - 审查及修复日期：2026-09-17—2026-09-18
 - 仓库：`murphumm-collab/ours-protocol-contracts`
-- 分支：`codex/contracts`
+- 修复分支：`codex/audit-fixes-2026-09-18`
 - 审查基线：`9b1559611de61f9703b1ace86e15aa88fb2fe3fa`
-- 当前状态：本地审计副本已修复 F-01、F-02 并加入回归测试；尚未推送 GitHub。完整 PONS/Robinhood V4 生产接入仍是上线阻断项。
+- 当前状态：已修复 F-01、F-02 并推送 GitHub 修复分支。完整 PONS/Robinhood V4 生产接入仍是上线阻断项。
 
 ## 1. 这些合约是做什么的
 
@@ -32,7 +32,7 @@
 - Solidity 0.8.30、optimizer 200、viaIR、EVM Paris 编译通过。
 - 原仓库基线：58 项业务/安全/平台测试通过，1 项部署 CLI 测试通过。
 - 本次先复现 V4 原生币 synced-currency 问题，再修复并将其保留为成功回归用例。
-- 修复后完整复跑：60 项 Node 测试（含 V4 回归与固定分账测试）与 1 项部署测试全部通过，0 失败、0 跳过。
+- 修复后完整复跑：75 项 Node 测试与 1 项部署测试全部通过，0 失败、0 跳过。
 - 最大运行时代码：`OursPlatformTreasury` 20,099 bytes，低于 EIP-170 24,576 bytes。
 - `npm audit`：33 项工具链依赖告警（Critical 5 / High 22 / Moderate 5 / Low 1），主要来自 Ganache 的传递依赖；不是 33 个 Solidity 漏洞。
 
