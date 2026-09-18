@@ -1,1 +1,34 @@
-{"name":"ours-revenue-contracts","private":true,"type":"module","scripts":{"compile":"node scripts/compile.mjs","test":"node --test test/*.test.mjs","check":"npm run compile && npm test && node --test test/deploy-smoke.mjs","test:deploy":"npm run compile && node --test test/deploy-smoke.mjs","test:security":"node --test --test-name-pattern=security: test/revenue.test.mjs","test:platform":"node --test --test-name-pattern=platform: test/revenue.test.mjs"},"dependencies":{"@openzeppelin/contracts":"5.4.0"},"devDependencies":{"ethers":"6.17.0","ganache":"7.9.2","solc":"0.8.30"},"overrides":{"solc":{"tmp":"0.2.7"}}}
+{
+  "name": "ours-revenue-contracts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile": "node scripts/compile.mjs",
+    "test": "node --test test/*.test.mjs",
+    "check": "npm run compile && npm test && node --test test/deploy-smoke.mjs && node --test test/real-v4.integration.mjs",
+    "test:deploy": "npm run compile && node --test test/deploy-smoke.mjs",
+    "test:security": "node --test --test-name-pattern=security: test/revenue.test.mjs",
+    "test:platform": "node --test --test-name-pattern=platform: test/revenue.test.mjs",
+    "test:v4": "npm run compile && node --test test/real-v4.integration.mjs",
+    "test:deep": "node --test --test-name-pattern=deep test/revenue.test.mjs"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "5.4.0"
+  },
+  "devDependencies": {
+    "@uniswap/v4-core": "1.0.2",
+    "ethers": "6.17.0",
+    "ganache": "7.9.2",
+    "hardhat": "2.26.3",
+    "solc": "0.8.30",
+    "solc-v4": "npm:solc@0.8.26"
+  },
+  "overrides": {
+    "solc": {
+      "tmp": "0.2.7"
+    },
+    "solc-v4": {
+      "tmp": "0.2.7"
+    }
+  }
+}

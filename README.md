@@ -29,7 +29,7 @@
 
 ## 构建和测试
 
-需要 Node.js 20+：
+需要 Node.js 22：
 
 ```sh
 cd ours-protocol-contracts
@@ -117,10 +117,12 @@ node scripts/dividend-manifest.mjs holders.json manifest.json
 - 不提供 PONS 原版不一致源码的自动修复或上线部署；真实 Factory/Curve/Hook 集成及真实 V4 fork 仍需完成。
 - 审核者能发布不公平但合法的 Merkle root；金额上限防超支，不消除审核信任。Root 只在延时前可撤销，激活后不能回收用户权益。
 - 股权类资产可能有冻结/准入限制，白名单需人工核验；合约不绕过限制。
-- 暂停兑换不暂停已经归属的领取；没有管理员提款/任意调用/升级入口。未知误转资产会留在合约，避免错误救援侵占义务余额。
+- 原有项目收益池暂停兑换不暂停已经归属的领取；这些池没有管理员提款/任意调用/升级入口。独立平台 Treasury 另有延时向固定平台地址提款的功能。未知误转资产会留在合约，避免错误救援侵占义务余额。
 - 首版无自动 Gatekeeper 代付、外部 keeper 奖励或每日总交易限额；应由受限操作服务另外控制。
 
 完整测试结果与剩余边界见 [VALIDATION.md](VALIDATION.md)。
+
+2026-09-18 深入验证见 [DEEP_VALIDATION.md](DEEP_VALIDATION.md)。新增测试在本地 Cancun EVM 运行未修改的官方 V4 PoolManager，验证真实 AMM 数学和受控 Hook 场景；仍未完成真实 PONS Hook 或目标链 fork 接入。`npm run check` 包含该测试，`npm run test:v4` 可单独执行。
 
 安全测试补充见 [SECURITY_TESTS.md](SECURITY_TESTS.md)，可用 `npm run test:security` 独立执行。
 

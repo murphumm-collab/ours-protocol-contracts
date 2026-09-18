@@ -85,4 +85,54 @@ export function registerPlatformTests(c){
   await tx(f.manager.setFees(-1,11));await assert.rejects(tx(f.vault.harvestLiquidityFees(add.p.poolId,-60,60,add.p.salt,{gasLimit:1500000})));await solvent(f);
  });
 
+ test('deep regression: revoking stock eligibility must stop new LP even if the asset remains a fee currency',async()=>{
+  const f=await make();await acquireLPAssets(f);await tx(f.vault.configureAsset(f.stock.target,true,true,1000000));
+  const add=await lpPlan(f);await tx(f.vault.addLiquidity(add.p,add.signature));
+  await tx(f.vault.configureAsset(f.stock.target,true,false,1000000));const next=await lpPlan(f,false,{nonce:11});
+  await assert.rejects(tx(f.vault.addLiquidity(next.p,next.signature,{gasLimit:1500000})));
+  const remove=await lpPlan(f,true);await tx(f.vault.queueAction(await f.vault.removalAction(remove.p)));await advance(21);await tx(f.vault.removeLiquidity(remove.p));await solvent(f);
+ });
+
+ test('deep: ownership transfer rejects former governor while preserving cancelable queued actions',async()=>{
+  const f=await make();await deposit(f);const salt=ethers.id('handoff'),action=await f.vault.withdrawalAction(f.asset,100,false,salt);await tx(f.vault.queueAction(action));
+  await tx(f.vault.transferOwnership(f.user.address));await assert.rejects(tx(f.vault.connect(f.other).acceptOwnership()));await tx(f.vault.connect(f.user).acceptOwnership());
+  await assert.rejects(tx(f.vault.setOperator(f.other.address,true)));await assert.rejects(tx(f.vault.cancelAction(action)));await tx(f.vault.connect(f.user).cancelAction(action));await advance(21);await assert.rejects(tx(f.vault.withdraw(f.asset,100,false,salt)));await solvent(f);
+ });
+ test('deep: queue cancel/requeue renews delay; token freeze rolls back execution and can be retried',async()=>{
+  const f=await make();await deposit(f);const salt=ethers.id('retry'),action=await f.vault.withdrawalAction(f.asset,100,false,salt);await tx(f.vault.queueAction(action));await advance(10);await tx(f.vault.cancelAction(action));await tx(f.vault.queueAction(action));await advance(11);await assert.rejects(tx(f.vault.withdraw(f.asset,100,false,salt)));await advance(10);
+  await tx(f.quote.setBlocked(f.treasury.address,true));await assert.rejects(tx(f.vault.withdraw(f.asset,100,false,salt,{gasLimit:300000})));assert.equal(await f.vault.completedActions(action),false);await solvent(f);
+  await tx(f.quote.setBlocked(f.treasury.address,false));await tx(f.vault.withdraw(f.asset,100,false,salt));assert.equal(await f.quote.balanceOf(f.treasury.address),100n);await solvent(f);
+ });
+ test('deep: queued exits still work after pause and delisting, without unlocking retained tokens for operators',async()=>{
+  const f=await make();await acquireLPAssets(f);await tx(f.vault.reservePlatformTokens(100));const add=await lpPlan(f);await tx(f.vault.addLiquidity(add.p,add.signature));const remove=await lpPlan(f,true);await tx(f.vault.queueAction(await f.vault.removalAction(remove.p)));
+  await tx(f.vault.setPaused(true));await tx(f.vault.configurePool(f.lp.key,false,false));await tx(f.vault.configureAsset(f.stock.target,false,false,0));await advance(21);await tx(f.vault.connect(f.other).removeLiquidity(remove.p));assert.equal(await f.vault.retainedPlatformTokens(),100n);
+  await assert.rejects(tx(f.vault.connect(f.operator).queueAction(await f.vault.withdrawalAction(f.token.target,100,true,ethers.id('operator')))));await solvent(f);
+ });
+ test('deep: ERC1271 signer can authorize a real plan and revoked operator cannot execute it',async()=>{
+  const f=await make();await deposit(f);const signer=await deploy('test/mocks/Mocks.sol','Mock1271');await tx(f.vault.setQuoteSigner(signer.target));const x=await swap(f,f.buyPool,100n,200n);await tx(signer.set(await f.vault.swapDigest(x.p)));await tx(f.vault.setOperator(f.operator.address,false));
+  await assert.rejects(tx(f.vault.connect(f.operator).executeSwap(x.p,'0x')));await tx(f.vault.executeSwap(x.p,'0x'));await solvent(f);
+ });
+ for(const seed of [1907,4211,8123])test(`deep: platform state-machine ledger and token supply conservation seed ${seed}`,async t=>{
+  const f=await make();let rng=seed;const random=()=>{rng=(Math.imul(rng,1664525)+1013904223)>>>0;return rng;};
+  let gross=1000n,quote=500n,operating=200n,platform=200n,stock=100n,retained=100n,liquidity=100n,paid=0n,tokenPaid=0n,nonce=100;const counts=Array(10).fill(0);await acquireLPAssets(f);await tx(f.vault.reservePlatformTokens(100));const initial=await lpPlan(f);await tx(f.vault.addLiquidity(initial.p,initial.signature));
+  for(let step=0;step<60;step++){
+   const op=(random()>>>8)%10;counts[op]++;const n=BigInt(random()%11+1);
+   if(op===0){const old=gross*8n/10n;await deposit(f,n);gross+=n;const allocation=gross*8n/10n-old;quote+=allocation;operating+=n-allocation;}
+   else if((op===1||op===2)&&quote>=n){const keep=op===1&&(random()%2===0);await execute(f,await swap(f,op===1?f.buyPool:f.stockPool,n,2n*n,keep,nonce++));quote-=n;if(op===2)stock+=2n*n;else if(keep)retained+=2n*n;else platform+=2n*n;}
+   else if(op===3&&platform>=n){await tx(f.vault.reservePlatformTokens(n));platform-=n;retained+=n;}
+   else if(op===4&&platform>=n&&stock>=n){const add=await lpPlan(f,false,{liquidity:n,maxAmount0:n,maxAmount1:n,nonce:nonce++});await tx(f.vault.addLiquidity(add.p,add.signature));platform-=n;stock-=n;liquidity+=n;}
+   else if(op===5&&liquidity>0n){const amount=n<liquidity?n:liquidity;const remove=await lpPlan(f,true,{liquidity:amount,minAmount0:amount,minAmount1:amount,nonce:nonce++});await tx(f.vault.queueAction(await f.vault.removalAction(remove.p)));await advance(21);await tx(f.vault.connect(f.other).removeLiquidity(remove.p));liquidity-=amount;platform+=amount;stock+=amount;}
+   else if(op===6&&liquidity>0n){await tx(f.manager.setFees(n,n));await tx(f.vault.harvestLiquidityFees(f.lp.id,-60,60,ethers.id('platform position')));platform+=n;stock+=n;}
+   else if(op===7&&operating>0n){await tx(f.vault.connect(f.other).claimOperating(f.asset));paid+=operating;operating=0n;}
+   else if(op===8&&retained>0n){const amount=n<retained?n:retained,salt=ethers.id(`seed-${seed}-step-${step}`),action=await f.vault.withdrawalAction(f.token.target,amount,true,salt);await tx(f.vault.queueAction(action));await advance(21);await tx(f.vault.connect(f.other).withdraw(f.token.target,amount,true,salt));retained-=amount;tokenPaid+=amount;}
+   else if(op===9)await assert.rejects(tx(f.vault.connect(f.other).reservePlatformTokens(1,{gasLimit:150000})));
+   assert.equal(await f.vault.strategyBalance(f.asset),quote);assert.equal(await f.vault.operatingBalance(f.asset),operating);assert.equal(await f.vault.strategyBalance(f.token.target),platform);assert.equal(await f.vault.strategyBalance(f.stock.target),stock);assert.equal(await f.vault.retainedPlatformTokens(),retained);await solvent(f);
+   assert.equal(await f.vault.positionLiquidity(await f.vault.positionId(f.lp.id,-60,60,ethers.id('platform position'))),liquidity);
+   assert.equal(await f.quote.balanceOf(f.treasury.address),paid);assert.equal(await f.token.balanceOf(f.treasury.address),tokenPaid);
+   assert.equal((await f.token.balanceOf(f.manager.target))+platform+retained+tokenPaid,10000000n);assert.equal((await f.stock.balanceOf(f.manager.target))+stock,10000000n);
+   assert.equal(quote+operating+paid+(await f.quote.balanceOf(f.manager.target))-10000000n,gross);assert.equal(await f.token.balanceOf(f.other.address),0n);
+  }
+  assert(counts.every(n=>n>0));t.diagnostic(`platform seed=${seed} steps=60 attempts=${counts}`);
+ });
+
 }

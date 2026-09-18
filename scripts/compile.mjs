@@ -14,8 +14,9 @@ export function compile(){
 }
 if(process.argv[1]===fileURLToPath(import.meta.url)){
  const contracts=compile();fs.mkdirSync(path.join(root,'artifacts'),{recursive:true});
- for(const [file,entries] of Object.entries(contracts)){if(!file.startsWith('src/'))continue;for(const [name,a]of Object.entries(entries)){
+ for(const [file,entries] of Object.entries(contracts)){if(!file.startsWith('src/')&&!file.startsWith('test/mocks/'))continue;for(const [name,a]of Object.entries(entries)){
  const size=a.evm.deployedBytecode.object.length/2;if(size>24576)throw new Error(`${name} exceeds EIP-170: ${size}`);
- fs.writeFileSync(path.join(root,'artifacts',name+'.json'),JSON.stringify(a,null,2));if(size)console.log(`${name}: ${size} bytes`);
+ const destination=file.startsWith('test/')?path.join(root,'artifacts/test'):path.join(root,'artifacts');fs.mkdirSync(destination,{recursive:true});
+ fs.writeFileSync(path.join(destination,name+'.json'),JSON.stringify(a,null,2));if(size&&file.startsWith('src/'))console.log(`${name}: ${size} bytes`);
  }}
 }

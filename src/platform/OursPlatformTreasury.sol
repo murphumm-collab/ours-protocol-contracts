@@ -90,6 +90,8 @@ contract OursPlatformTreasury is Ownable2Step, ReentrancyGuard, EIP712 {
             || treasury_==address(0) || treasury_==address(this) || signer_==address(0) || delay_==0) revert Invalid();
         feePool=feePool_;manager=manager_;platformToken=token_;treasuryRecipient=treasury_;quoteSigner=signer_;governanceDelay=delay_;
     }
+    /// @notice Custody exits require governance; rotate ownership with the two-step transfer instead.
+    function renounceOwnership() public override onlyOwner { revert Invalid(); }
     receive() external payable {}
     modifier executor(){if(msg.sender!=owner()&&!operators[msg.sender])revert Unauthorized();_;}
     modifier running(){if(paused)revert BadPlan();_;}
@@ -185,6 +187,7 @@ contract OursPlatformTreasury is Ownable2Step, ReentrancyGuard, EIP712 {
     function addLiquidity(LiquidityPlan calldata p,bytes calldata signature) external executor running nonReentrant {
         IV4Manager.PoolKey memory key=pools[p.poolId];
         if(!liquidityPools[p.poolId]||!_knownAsset(key.currency0)||!_knownAsset(key.currency1)
+            ||(!stockAssets[key.currency0]&&!stockAssets[key.currency1])
             ||p.maxAmount0>strategyBalance[key.currency0]||p.maxAmount1>strategyBalance[key.currency1]
             ||p.maxAmount0+p.maxAmount1==0||p.minAmount0!=0||p.minAmount1!=0)revert BadPlan();
         _authorize(liquidityDigest(p),p.deadline,p.nonce,p.signerEpoch,signature);_modify(p,true);

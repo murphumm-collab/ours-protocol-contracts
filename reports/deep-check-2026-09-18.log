@@ -1,0 +1,545 @@
+
+> check
+> npm run compile && npm test && node --test test/deploy-smoke.mjs && node --test test/real-v4.integration.mjs
+
+
+> compile
+> node scripts/compile.mjs
+
+Warning: Function state mutability can be restricted to view
+  --> src/platform/OursPlatformTreasury.sol:94:5:
+   |
+94 |     function renounceOwnership() public override onlyOwner { revert Invalid(); }
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+OursBuybackPool: 8675 bytes
+OursDividendPool: 13972 bytes
+OursFeePool: 11435 bytes
+OursProjectRegistry: 10497 bytes
+OursCurveAdapter: 2930 bytes
+OursV4Adapter: 5331 bytes
+OursRevenueTypes: 58 bytes
+OursPlatformTreasury: 18081 bytes
+
+> test
+> node --test test/*.test.mjs
+
+TAP version 13
+# Subtest: holder threshold includes equality; exclusions and proof paths match Solidity double-hash leaves
+ok 1 - holder threshold includes equality; exclusions and proof paths match Solidity double-hash leaves
+  ---
+  duration_ms: 12.394917
+  type: 'test'
+  ...
+# Subtest: empty eligibility produces no claim root, retaining all funding
+ok 2 - empty eligibility produces no claim root, retaining all funding
+  ---
+  duration_ms: 0.307708
+  type: 'test'
+  ...
+# Subtest: manifest rejects duplicate holders and negatives, truncates only rounding dust
+ok 3 - manifest rejects duplicate holders and negatives, truncates only rounding dust
+  ---
+  duration_ms: 1.112208
+  type: 'test'
+  ...
+# Subtest: regression: reject unsafe JavaScript numbers before token amounts lose precision
+ok 4 - regression: reject unsafe JavaScript numbers before token amounts lose precision
+  ---
+  duration_ms: 0.187167
+  type: 'test'
+  ...
+# Subtest: manifest validates uint256 boundaries and excludes the zero address
+ok 5 - manifest validates uint256 boundaries and excludes the zero address
+  ---
+  duration_ms: 2.885792
+  type: 'test'
+  ...
+# Subtest: deterministic generated portfolios conserve funds and verify every proof for odd/even trees
+ok 6 - deterministic generated portfolios conserve funds and verify every proof for odd/even trees
+  ---
+  duration_ms: 994.180583
+  type: 'test'
+  ...
+# bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+# This version of µWS is not compatible with your Node.js build:
+# Error: Cannot find module '../binaries/uws_darwin_arm64_127.node'
+# Require stack:
+# - /Users/mo/Documents/ours-protocol-contracts/node_modules/ganache/node_modules/@trufflesuite/uws-js-unofficial/src/uws.js
+# - /Users/mo/Documents/ours-protocol-contracts/node_modules/ganache/dist/node/core.js
+# Falling back to a NodeJS implementation; performance may be degraded.
+# Warning: Function state mutability can be restricted to view
+#   --> src/platform/OursPlatformTreasury.sol:94:5:
+#    |
+# 94 |     function renounceOwnership() public override onlyOwner { revert Invalid(); }
+#    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# Subtest: 100 fee splits 30 platform / 28 buyback / 28 dividend / 14 creator, with liabilities conserved
+ok 7 - 100 fee splits 30 platform / 28 buyback / 28 dividend / 14 creator, with liabilities conserved
+  ---
+  duration_ms: 1785.50375
+  type: 'test'
+  ...
+# Subtest: cumulative allocation is independent of batching, including dust release
+ok 8 - cumulative allocation is independent of batching, including dust release
+  ---
+  duration_ms: 3775.715333
+  type: 'test'
+  ...
+# Subtest: historical source accrual survives policy change; disabled new version is 100% platform
+ok 9 - historical source accrual survives policy change; disabled new version is 100% platform
+  ---
+  duration_ms: 2052.869916
+  type: 'test'
+  ...
+# Subtest: policies reject invalid proportions; cancelled IDs never activate; controller transfer preserves old payee
+ok 10 - policies reject invalid proportions; cancelled IDs never activate; controller transfer preserves old payee
+  ---
+  duration_ms: 1579.014417
+  type: 'test'
+  ...
+# Subtest: unauthorized fee injection, bucket funding, execution and reviewer actions are rejected
+ok 11 - unauthorized fee injection, bucket funding, execution and reviewer actions are rejected
+  ---
+  duration_ms: 501.016
+  type: 'test'
+  ...
+# Subtest: buyback checks signed destination, actual balance deltas, burns output, and cannot replay
+ok 12 - buyback checks signed destination, actual balance deltas, burns output, and cannot replay
+  ---
+  duration_ms: 1015.088458
+  type: 'test'
+  ...
+# Subtest: minimum output failure rolls back nonce and budget; revoked signature epoch rejects old plans
+ok 13 - minimum output failure rolls back nonce and budget; revoked signature epoch rejects old plans
+  ---
+  duration_ms: 770.786125
+  type: 'test'
+  ...
+# Subtest: curve adapter handles partial fill refunds, preserves donation, and clears approvals
+ok 14 - curve adapter handles partial fill refunds, preserves donation, and clears approvals
+  ---
+  duration_ms: 1157.494334
+  type: 'test'
+  ...
+# Subtest: ready/migrating projects cannot swap; historical fee sweeps remain possible after graduation
+ok 15 - ready/migrating projects cannot swap; historical fee sweeps remain possible after graduation
+  ---
+  duration_ms: 963.60875
+  type: 'test'
+  ...
+# Subtest: raw Hook-style meme fees normalize before distribution and retain version
+ok 16 - raw Hook-style meme fees normalize before distribution and retain version
+  ---
+  duration_ms: 2259.986917
+  type: 'test'
+  ...
+# Subtest: pull dividend claims bind beneficiary, epoch and pool, require review delay, and reject duplicate claims
+ok 17 - pull dividend claims bind beneficiary, epoch and pool, require review delay, and reject duplicate claims
+  ---
+  duration_ms: 1508.745375
+  type: 'test'
+  ...
+# Subtest: no holder iteration: independent claims; blocked recipient cannot consume another holder reserve
+ok 18 - no holder iteration: independent claims; blocked recipient cannot consume another holder reserve
+  ---
+  duration_ms: 1409.536875
+  type: 'test'
+  ...
+# Subtest: reviewer cannot publish beyond funding, creator cannot author a root, and aggregate claim cap is enforced
+ok 19 - reviewer cannot publish beyond funding, creator cannot author a root, and aggregate claim cap is enforced
+  ---
+  duration_ms: 1195.874334
+  type: 'test'
+  ...
+# Subtest: empty epoch rolls back only to same project inventory; review cancellation permits correction with renewed delay
+ok 20 - empty epoch rolls back only to same project inventory; review cancellation permits correction with renewed delay
+  ---
+  duration_ms: 1119.904458
+  type: 'test'
+  ...
+# Subtest: native fees/refunds and separate stock reward conversion work
+ok 21 - native fees/refunds and separate stock reward conversion work
+  ---
+  duration_ms: 2234.922208
+  type: 'test'
+  ...
+# Subtest: V4 adapter authenticates callback/canonical pool, settles actual deltas, and refunds partial input
+ok 22 - V4 adapter authenticates callback/canonical pool, settles actual deltas, and refunds partial input
+  ---
+  duration_ms: 1316.197541
+  type: 'test'
+  ...
+# Subtest: ERC1271 quote signer support and pause do not prevent existing income claims
+ok 23 - ERC1271 quote signer support and pause do not prevent existing income claims
+  ---
+  duration_ms: 1207.092292
+  type: 'test'
+  ...
+# Subtest: fee-on-transfer deposits revert without consuming source accrual
+ok 24 - fee-on-transfer deposits revert without consuming source accrual
+  ---
+  duration_ms: 129.924083
+  type: 'test'
+  ...
+# Subtest: new-period rewards cannot block funding the previous period
+ok 25 - new-period rewards cannot block funding the previous period
+  ---
+  duration_ms: 1265.007833
+  type: 'test'
+  ...
+# Subtest: another project controller cannot spend or distribute this project balances
+ok 26 - another project controller cannot spend or distribute this project balances
+  ---
+  duration_ms: 777.911625
+  type: 'test'
+  ...
+# Subtest: zero creator share cannot collect rounding dust; disabled mode cannot fund either action pool
+ok 27 - zero creator share cannot collect rounding dust; disabled mode cannot fund either action pool
+  ---
+  duration_ms: 2309.207125
+  type: 'test'
+  ...
+# Subtest: signed plans fail on expiry, altered routes, overspend and another verifying pool
+ok 28 - signed plans fail on expiry, altered routes, overspend and another verifying pool
+  ---
+  duration_ms: 844.558041
+  type: 'test'
+  ...
+# Subtest: real dividend manifest enforces configured minimum off-chain and its proofs redeem on-chain
+ok 29 - real dividend manifest enforces configured minimum off-chain and its proofs redeem on-chain
+  ---
+  duration_ms: 1272.557833
+  type: 'test'
+  ...
+# Subtest: native income recipient reentrancy cannot claim twice or take other liabilities
+ok 30 - native income recipient reentrancy cannot claim twice or take other liabilities
+  ---
+  duration_ms: 1114.734208
+  type: 'test'
+  ...
+# Subtest: regression: independent dividend asset conversion remains usable during meme migration
+ok 31 - regression: independent dividend asset conversion remains usable during meme migration
+  ---
+  duration_ms: 1698.574458
+  type: 'test'
+  ...
+# Subtest: regression: irreversible pool binding rejects another registry and swapped pool roles
+ok 32 - regression: irreversible pool binding rejects another registry and swapped pool roles
+  ---
+  duration_ms: 219.896708
+  type: 'test'
+  ...
+# Subtest: ten thousand eligible holders need only a logarithmic proof and one user claim
+ok 33 - ten thousand eligible holders need only a logarithmic proof and one user claim
+  ---
+  duration_ms: 3398.4585
+  type: 'test'
+  ...
+# holders=10000 proofLength=8 claimGas=135489
+# Subtest: failed output slippage restores nonce, token balances and allowance, allowing a fresh signed retry
+ok 34 - failed output slippage restores nonce, token balances and allowance, allowing a fresh signed retry
+  ---
+  duration_ms: 1004.684625
+  type: 'test'
+  ...
+# Subtest: adapter revocation, asset revocation and per-batch limit block swaps without consuming funds
+ok 35 - adapter revocation, asset revocation and per-batch limit block swaps without consuming funds
+  ---
+  duration_ms: 1186.135083
+  type: 'test'
+  ...
+# Subtest: historical treasury is frozen in each version even when governance changes recipient
+ok 36 - historical treasury is frozen in each version even when governance changes recipient
+  ---
+  duration_ms: 2076.542125
+  type: 'test'
+  ...
+# Subtest: direct donations do not become claimable fees, budgets or reward inventory
+ok 37 - direct donations do not become claimable fees, budgets or reward inventory
+  ---
+  duration_ms: 470.702709
+  type: 'test'
+  ...
+# Subtest: snapshot rejects wrong recent block hash and duplicate records; epoch funding cannot repeat
+ok 38 - snapshot rejects wrong recent block hash and duplicate records; epoch funding cannot repeat
+  ---
+  duration_ms: 1002.1345
+  type: 'test'
+  ...
+# Subtest: review cancellation resets the waiting period; an active root and outstanding claims are immutable
+ok 39 - review cancellation resets the waiting period; an active root and outstanding claims are immutable
+  ---
+  duration_ms: 1337.775084
+  type: 'test'
+  ...
+# Subtest: extreme and generated allocation ratios conserve liabilities across historical versions
+ok 40 - extreme and generated allocation ratios conserve liabilities across historical versions
+  ---
+  duration_ms: 9874.154625
+  type: 'test'
+  ...
+# Subtest: security: fabricated output reverts actual transaction and preserves funds
+ok 41 - security: fabricated output reverts actual transaction and preserves funds
+  ---
+  duration_ms: 1350.753625
+  type: 'test'
+  ...
+# Subtest: security: spending beyond exact approval reverts actual transaction and preserves funds
+ok 42 - security: spending beyond exact approval reverts actual transaction and preserves funds
+  ---
+  duration_ms: 1109.713959
+  type: 'test'
+  ...
+# Subtest: security: adapter reentry fails even when it is an authorized operator; residual approval cannot drain
+ok 43 - security: adapter reentry fails even when it is an authorized operator; residual approval cannot drain
+  ---
+  duration_ms: 1324.536125
+  type: 'test'
+  ...
+# Subtest: security: token callback cannot reenter dividend claim or consume another holder reserve
+ok 44 - security: token callback cannot reenter dividend claim or consume another holder reserve
+  ---
+  duration_ms: 2215.564208
+  type: 'test'
+  ...
+# Subtest: security: a no-op burn rolls back the entire buyback and does not spend quote
+ok 45 - security: a no-op burn rolls back the entire buyback and does not spend quote
+  ---
+  duration_ms: 1724.255708
+  type: 'test'
+  ...
+# Subtest: security: attacker signature and mutated project cannot spend a funded victim bucket
+ok 46 - security: attacker signature and mutated project cannot spend a funded victim bucket
+  ---
+  duration_ms: 1219.583084
+  type: 'test'
+  ...
+# Subtest: security: seeded state machine conserves funds across projects and versions (seed 7351)
+ok 47 - security: seeded state machine conserves funds across projects and versions (seed 7351)
+  ---
+  duration_ms: 12101.961042
+  type: 'test'
+  ...
+# seed=7351 actions=7,8,7,10,16 steps=48
+# Subtest: security: seeded state machine conserves funds across projects and versions (seed 42017)
+ok 48 - security: seeded state machine conserves funds across projects and versions (seed 42017)
+  ---
+  duration_ms: 14738.815292
+  type: 'test'
+  ...
+# seed=42017 actions=8,9,8,12,11 steps=48
+# Subtest: security: seeded state machine conserves funds across projects and versions (seed 99173)
+ok 49 - security: seeded state machine conserves funds across projects and versions (seed 99173)
+  ---
+  duration_ms: 13493.659334
+  type: 'test'
+  ...
+# seed=99173 actions=12,10,10,6,10 steps=48
+# Subtest: platform: real FeePool income splits 30 platform fees into 24 strategy and 6 operating; project funds stay isolated
+ok 50 - platform: real FeePool income splits 30 platform fees into 24 strategy and 6 operating; project funds stay isolated
+  ---
+  duration_ms: 2135.411667
+  type: 'test'
+  ...
+# Subtest: platform: cumulative 80/20 allocation has no batch rounding exploit; unsolicited transfers are not budget
+ok 51 - platform: cumulative 80/20 allocation has no batch rounding exploit; unsolicited transfers are not budget
+  ---
+  duration_ms: 2166.329416
+  type: 'test'
+  ...
+# Subtest: platform: buyback retains actual platform tokens and stock purchase stays in its own strategy ledger
+ok 52 - platform: buyback retains actual platform tokens and stock purchase stays in its own strategy ledger
+  ---
+  duration_ms: 1611.383917
+  type: 'test'
+  ...
+# Subtest: platform: add LP, retain tokens, delayed removal and delayed withdrawal never pay the executor
+ok 53 - platform: add LP, retain tokens, delayed removal and delayed withdrawal never pay the executor
+  ---
+  duration_ms: 2588.045042
+  type: 'test'
+  ...
+# Subtest: platform: bad signatures, insufficient outputs, oversized budgets and replay preserve the 20% reserve
+ok 54 - platform: bad signatures, insufficient outputs, oversized budgets and replay preserve the 20% reserve
+  ---
+  duration_ms: 1662.911542
+  type: 'test'
+  ...
+# Subtest: platform: native input partial fills reconcile actual spend and cannot consume operating income
+ok 55 - platform: native input partial fills reconcile actual spend and cannot consume operating income
+  ---
+  duration_ms: 2182.704709
+  type: 'test'
+  ...
+# Subtest: platform: cancellation and exact withdrawal hashes prevent early, altered or operating-reserve withdrawals
+ok 56 - platform: cancellation and exact withdrawal hashes prevent early, altered or operating-reserve withdrawals
+  ---
+  duration_ms: 1462.510834
+  type: 'test'
+  ...
+# Subtest: platform: callback authentication, revocation, pause and signer rotation all fail closed
+ok 57 - platform: callback authentication, revocation, pause and signer rotation all fail closed
+  ---
+  duration_ms: 1882.23475
+  type: 'test'
+  ...
+# Subtest: platform: LP fee harvest preserves liquidity and credits only actual receipts to the strategy
+ok 58 - platform: LP fee harvest preserves liquidity and credits only actual receipts to the strategy
+  ---
+  duration_ms: 2354.045375
+  type: 'test'
+  ...
+# Subtest: deep regression: revoking stock eligibility must stop new LP even if the asset remains a fee currency
+ok 59 - deep regression: revoking stock eligibility must stop new LP even if the asset remains a fee currency
+  ---
+  duration_ms: 2427.372041
+  type: 'test'
+  ...
+# Subtest: deep: ownership transfer rejects former governor while preserving cancelable queued actions
+ok 60 - deep: ownership transfer rejects former governor while preserving cancelable queued actions
+  ---
+  duration_ms: 1087.372334
+  type: 'test'
+  ...
+# Subtest: deep: queue cancel/requeue renews delay; token freeze rolls back execution and can be retried
+ok 61 - deep: queue cancel/requeue renews delay; token freeze rolls back execution and can be retried
+  ---
+  duration_ms: 1356.19475
+  type: 'test'
+  ...
+# Subtest: deep: queued exits still work after pause and delisting, without unlocking retained tokens for operators
+ok 62 - deep: queued exits still work after pause and delisting, without unlocking retained tokens for operators
+  ---
+  duration_ms: 2409.335833
+  type: 'test'
+  ...
+# Subtest: deep: ERC1271 signer can authorize a real plan and revoked operator cannot execute it
+ok 63 - deep: ERC1271 signer can authorize a real plan and revoked operator cannot execute it
+  ---
+  duration_ms: 1429.637
+  type: 'test'
+  ...
+# Subtest: deep: platform state-machine ledger and token supply conservation seed 1907
+ok 64 - deep: platform state-machine ledger and token supply conservation seed 1907
+  ---
+  duration_ms: 21978.746334
+  type: 'test'
+  ...
+# platform seed=1907 steps=60 attempts=4,3,10,4,9,7,3,4,8,8
+# Subtest: deep: platform state-machine ledger and token supply conservation seed 4211
+ok 65 - deep: platform state-machine ledger and token supply conservation seed 4211
+  ---
+  duration_ms: 19334.044084
+  type: 'test'
+  ...
+# platform seed=4211 steps=60 attempts=3,4,5,4,12,7,5,6,4,10
+# Subtest: deep: platform state-machine ledger and token supply conservation seed 8123
+ok 66 - deep: platform state-machine ledger and token supply conservation seed 8123
+  ---
+  duration_ms: 20460.400917
+  type: 'test'
+  ...
+# platform seed=8123 steps=60 attempts=9,8,4,7,5,7,3,5,7,5
+1..66
+# tests 66
+# suites 0
+# pass 66
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 227517.074916
+TAP version 13
+# bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+# This version of µWS is not compatible with your Node.js build:
+# Error: Cannot find module '../binaries/uws_darwin_arm64_127.node'
+# Require stack:
+# - /Users/mo/Documents/ours-protocol-contracts/node_modules/ganache/node_modules/@trufflesuite/uws-js-unofficial/src/uws.js
+# - /Users/mo/Documents/ours-protocol-contracts/node_modules/ganache/dist/node/core.js
+# Falling back to a NodeJS implementation; performance may be degraded.
+# Subtest: deployment CLIs configure revenue contracts plus independent platform treasury with governance acceptance pending
+ok 1 - deployment CLIs configure revenue contracts plus independent platform treasury with governance acceptance pending
+  ---
+  duration_ms: 4726.848583
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5205.818167
+TAP version 13
+# Subtest: real-v4: zeroForOne swap settles real AMM deltas and isolates operating reserve
+ok 1 - real-v4: zeroForOne swap settles real AMM deltas and isolates operating reserve
+  ---
+  duration_ms: 803.86275
+  type: 'test'
+  ...
+# Subtest: real-v4: oneForZero swap settles real AMM deltas and isolates operating reserve
+ok 2 - real-v4: oneForZero swap settles real AMM deltas and isolates operating reserve
+  ---
+  duration_ms: 53.696083
+  type: 'test'
+  ...
+# Subtest: real-v4: native swap settles real AMM deltas and isolates operating reserve
+ok 3 - real-v4: native swap settles real AMM deltas and isolates operating reserve
+  ---
+  duration_ms: 47.308375
+  type: 'test'
+  ...
+# Subtest: real-v4: price-bound partial fill charges only real input, while impossible minimum output rolls back
+ok 4 - real-v4: price-bound partial fill charges only real input, while impossible minimum output rolls back
+  ---
+  duration_ms: 77.389292
+  type: 'test'
+  ...
+# Subtest: real-v4: contract owns real liquidity, harvests real fees, and removes it only after delay
+ok 5 - real-v4: contract owns real liquidity, harvests real fees, and removes it only after delay
+  ---
+  duration_ms: 172.938417
+  type: 'test'
+  ...
+# Subtest: real-v4: native platform swap survives hook synchronization of another currency
+ok 6 - real-v4: native platform swap survives hook synchronization of another currency
+  ---
+  duration_ms: 58.894084
+  type: 'test'
+  ...
+# Subtest: real-v4 regression: native revenue adapter clears currency synchronized by swap hook
+ok 7 - real-v4 regression: native revenue adapter clears currency synchronized by swap hook
+  ---
+  duration_ms: 86.938458
+  type: 'test'
+  ...
+# Subtest: custody regression: governance cannot be renounced because retained assets and LP exits require it
+ok 8 - custody regression: governance cannot be renounced because retained assets and LP exits require it
+  ---
+  duration_ms: 13.703709
+  type: 'test'
+  ...
+# Subtest: real-v4: failed LP minimum restores queued action, position and balances; valid retry succeeds
+ok 9 - real-v4: failed LP minimum restores queued action, position and balances; valid retry succeeds
+  ---
+  duration_ms: 161.859833
+  type: 'test'
+  ...
+# Subtest: real-v4: another caller cannot remove the treasury position through the public liquidity harness
+ok 10 - real-v4: another caller cannot remove the treasury position through the public liquidity harness
+  ---
+  duration_ms: 89.722333
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4817.428958

@@ -74,7 +74,11 @@ contract OursV4Adapter is Ownable2Step, ReentrancyGuard, IOursSwapAdapter {
         int128 outDelta = assetIn == key.currency0 ? delta1 : delta0;
         if (inDelta >= 0 || outDelta <= 0) revert Invalid();
         uint256 owed = uint256(-int256(inDelta)); if (owed > amount) revert Invalid();
-        if (assetIn == address(0)) { if (manager.settle{value:owed}() != owed) revert Invalid(); }
+        if (assetIn == address(0)) {
+            // A hook can leave an ERC20 synced in this transaction; explicitly select native.
+            manager.sync(address(0));
+            if (manager.settle{value:owed}() != owed) revert Invalid();
+        }
         else { manager.sync(assetIn); IERC20(assetIn).safeTransfer(address(manager),owed); if (manager.settle() != owed) revert Invalid(); }
         manager.take(assetOut,address(this),uint256(uint128(outDelta)));
         return "";

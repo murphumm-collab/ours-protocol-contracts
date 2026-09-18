@@ -74,7 +74,7 @@ contract MockV4Manager is IV4Manager {
         int128 a=p.zeroForOne?-spent:out;int128 b=p.zeroForOne?out:-spent;
         packed=(int256(a)<<128)|int256(uint256(uint128(b)));
     }
-    function sync(address a) external {synced=a;beforeBal=IERC20(a).balanceOf(address(this));}
+    function sync(address a) external {synced=a;beforeBal=a==address(0)?0:IERC20(a).balanceOf(address(this));}
     function settle() external payable returns(uint256 n){if(msg.value>0)return msg.value;n=IERC20(synced).balanceOf(address(this))-beforeBal;synced=address(0);}
     function take(address a,address to,uint256 n) external {require(unlocked);if(a==address(0)){(bool ok,)=to.call{value:n}("");require(ok);}else MockToken(a).mint(to,n);}
 }
